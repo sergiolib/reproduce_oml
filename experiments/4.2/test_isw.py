@@ -19,7 +19,7 @@ def test_isw_forward_pass_with_random_samples():
     inputs = tf.keras.Input(shape=(one_hot_depth + 1,))
     model = tf.keras.Model(inputs=inputs, outputs=mrcl_isw(inputs, n_layers_rln=6, n_layers_tln=2, 
                                                            hidden_units_per_layer=300, one_hot_depth=one_hot_depth))
-    y = model(x)
+    h, y = model(x)
     assert y.shape == (1, 1)
 
 def test_isw_forward_pass_with_training_set():
@@ -48,5 +48,5 @@ def test_isw_forward_pass_with_training_set():
     inputs = tf.keras.Input(shape=(one_hot_depth + 1,))
     model = tf.keras.Model(inputs=inputs, outputs=mrcl_isw(inputs, n_layers_rln=6, n_layers_tln=2, 
                                                            hidden_units_per_layer=300, one_hot_depth=one_hot_depth))
-    y_hat = model(x)
+    h, y_hat = model(x)
     assert len(y_hat) == 400 * 320

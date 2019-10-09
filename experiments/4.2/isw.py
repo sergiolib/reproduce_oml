@@ -54,4 +54,4 @@ def mrcl_isw(inputs, n_layers_rln=6, n_layers_tln=2, hidden_units_per_layer=300,
     """
     h = mrcl_isw_rln(inputs, n_layers_rln, hidden_units_per_layer)
     y = mrcl_isw_tln(h, n_layers_tln, hidden_units_per_layer)
-    return y
+    return h, y
