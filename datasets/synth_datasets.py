@@ -46,3 +46,36 @@ def gen_sine_data(n_id=10, n_samples=320):
         k[start:end] = i
 
     return z, k, y
+
+def partition_sine_data(sine_data, pretraining_n_seq=400, evaluation_n_seq=500, seq_len=320):
+    """
+    Partition the incremental sine waves dataset
+    :param sine_data: Direct output of gen_sine_data
+    :type sine_data: (numpy.ndarray, numpy.ndarray, numpy.ndarray)
+    :param pretraining_n_seq: Number of sequences to include in pretraining set
+    :type pretraining_n_seq: int
+    :param evaluation_n_seq: Number of sequences to include in evaluation set
+    :type evaluation_n_seq: int
+    :param seq_len: Length of each sequence
+    :type seq_len: int
+    :return: Partitioned pretraining and evaluation sets
+    :rtype: dict
+    """
+    partitioned = {}
+    z, k, y = sine_data
+    border_index = pretraining_n_seq * seq_len
+    ptr_z = z[:border_index]
+    eval_z = z[border_index:]
+    ptr_k = k[:border_index]
+    eval_k = k[border_index:]
+    ptr_y = y[:border_index]
+    eval_y = y[border_index:]
+    pretraining = partitioned["pretraining"] = {}
+    evaluation = partitioned["evaluation"] = {}
+    pretraining["z"] = ptr_z
+    pretraining["k"] = ptr_k
+    pretraining["y"] = ptr_y
+    evaluation["z"] = eval_z
+    evaluation["k"] = eval_k
+    evaluation["y"] = eval_y
+    return partitioned
