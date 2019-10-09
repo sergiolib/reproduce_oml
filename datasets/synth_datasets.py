@@ -63,6 +63,8 @@ def partition_sine_data(sine_data, pretraining_n_seq=400, evaluation_n_seq=500, 
     """
     partitioned = {}
     z, k, y = sine_data
+    if len(z) != len(k) or len(k) != len(y) or len(y) != (pretraining_n_seq + evaluation_n_seq) * seq_len:
+        raise AttributeError("Incorrent parameters")
     border_index = pretraining_n_seq * seq_len
     ptr_z = z[:border_index]
     eval_z = z[border_index:]
