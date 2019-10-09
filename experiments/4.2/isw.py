@@ -51,6 +51,7 @@ def mrcl_isw(inputs, n_layers_rln=6, n_layers_tln=2, hidden_units_per_layer=300,
     :type hidden_units_per_layer: int
     :param one_hot_depth: Length of the one hot encoding vectors
     :type one_hot_depth: int
+    :rtype: (tf.Tensor, tf.Tensor)
     """
     h = mrcl_isw_rln(inputs, n_layers_rln, hidden_units_per_layer)
     y = mrcl_isw_tln(h, n_layers_tln, hidden_units_per_layer)
