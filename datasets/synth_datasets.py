@@ -1,6 +1,5 @@
 """ Loader file for synthetic datasets"""
 
-import tensorflow as tf
 import numpy as np
 from math import pi
 from random import sample
@@ -23,8 +22,6 @@ def gen_sine_data(n_id=10, n_samples=320):
     """
     # Define how many sine functions to generate
     indices = sample(range(n_id), n_id)  # IDs in random order, use = [range(n_id)] to sort them
-    # Create N one-hot vectors, each indicating an ID for which sine function to use
-    k = tf.one_hot(indices, n_id)
 
     # Sample amplitude for each function
     amplitude = np.random.uniform(amp_min, amp_max, n_id)
@@ -35,13 +32,17 @@ def gen_sine_data(n_id=10, n_samples=320):
 
     # Initialize a 1D array of samples x functions. The samples of each function are concatenated in sequence
     y = np.zeros(shape=(n_samples * n_id))
+    
+    # Initialize a 1D array of samples x functions for z and k values as well
+    z = np.zeros(shape=(n_samples * n_id))
+    k = np.zeros(shape=(n_samples * n_id), dtype=int)
 
     # For every function sample n_samples and add them to the correct indices
     for i in indices:
         start = i * n_samples
         end = start + n_samples
         y[start:end] = np.sin(list_of_z[:, i] + phase[i]) * amplitude[i]
+        z[start:end] = list_of_z[:, i]
+        k[start:end] = i
 
-    y = tf.convert_to_tensor(y)
-
-    return y
+    return z, k, y
