@@ -1,3 +1,12 @@
+import tensorflow as tf
+import sys
+sys.path.append("../../datasets")
+sys.path.append("../")
+from synth_datasets import gen_sine_data, partition_sine_data
+from training import split_data_in_2, mrcl_pretrain
+from isw import mrcl_isw
+
+
 regression_parameters = {
     "meta_learning_rate": 1e-4,  # alpha
     "inner_learning_rate": 3e-3,  # beta
@@ -8,7 +17,7 @@ regression_parameters = {
     "meta_optimizer": tf.optimizers.Adam,
     "random_batch_size": 8  # len(X_rand)
 }
-partition = synth_datasets.partition_sine_data(synth_datasets.gen_sine_data(n_id=900))
+partition = partition_sine_data(gen_sine_data(n_id=900))
 pretraining = partition["pretraining"]
 evaluation = partition["evaluation"]
 
