@@ -38,11 +38,9 @@ def mrcl_isw_tln(inputs, n_layers=2, hidden_units_per_layer=300):
     return y
 
 
-def mrcl_isw(inputs, n_layers_rln=6, n_layers_tln=2, hidden_units_per_layer=300, one_hot_depth=400):
+def mrcl_isw(n_layers_rln=6, n_layers_tln=2, hidden_units_per_layer=300, one_hot_depth=400):
     """
     Full MRCL model in section 4.2 of the paper. Predicts incremental sine waves.
-    :param inputs: Input placeholder, a concatenation of z and the one hot encoding of k
-    :type inputs: tf.keras.Input
     :param n_layers_rln: Number of layers in the RLN
     :type n_layers_rln: int
     :param n_layers_tln: Number of layers in the TLN
@@ -53,6 +51,10 @@ def mrcl_isw(inputs, n_layers_rln=6, n_layers_tln=2, hidden_units_per_layer=300,
     :type one_hot_depth: int
     :rtype: (tf.Tensor, tf.Tensor)
     """
-    h = mrcl_isw_rln(inputs, n_layers_rln, hidden_units_per_layer)
-    y = mrcl_isw_tln(h, n_layers_tln, hidden_units_per_layer)
-    return h, y
+    input_rln = tf.keras.Input(shape=one_hot_depth + 1)
+    input_tln = tf.keras.Input(shape=hidden_units_per_layer)
+    h = mrcl_isw_rln(input_rln, n_layers_rln, hidden_units_per_layer)
+    rln = tf.keras.Model(inputs=input_rln, outputs=h)
+    y = mrcl_isw_tln(input_tln, n_layers_tln, hidden_units_per_layer)
+    tln = tf.keras.Model(inputs=input_tln, outputs=y)
+    return rln, tln
