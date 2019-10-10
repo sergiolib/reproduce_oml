@@ -4,20 +4,34 @@ import tensorflow as tf
 import tensorflow_datasets as tfds
 
 
-def load_data(name, transform=False, verbose=1):
-    data, info = tfds.load(name=name, with_info=True, shuffle_files=False)  # We don't want shuffled files right?
-    train_data, test_data = data['train'], data['test']
+def resize(image):
+    """
+    Resize an image to 84x84
+    """
+    image['image'] = tf.image.resize(image['image'], size=(84, 84))
+    return image
 
+
+def load_omniglot(transform=True, verbose=1):
+    """
+    Load Omniglot Dataset
+    """
+    # Load the data as defined in https://www.tensorflow.org/datasets/catalog/omniglot
+    data, info = tfds.load(name="omniglot", with_info=True, shuffle_files=False)
+
+    # Split into background (also named as pre-training) and evaluation
+    background, evaluation = data['train'], data['test']
+
+    # Resize images to 84x84
     if transform:
-        # Resize images to 84x84
-        # TODO: transform omniglot images (see with tf.image.resize)
-        raise NotImplementedError
+        background = background.map(lambda sample: resize(sample))
+        evaluation = evaluation.map(lambda sample: resize(sample))
 
     if verbose > 0:
         print("Downloaded {} dataset (v:{})".format(info.name, str(info.version)))
         print("Size in disk: {} MB".format(info.size_in_bytes / 1e6))
     if verbose > 1:  # More info...
         print("Dataset info: \n", info.features)  # Inspect features
-        print("Sample info: \n", train_data.element_spec)  # Inspect element
+        print("Sample info: \n", background.element_spec)  # Inspect element
 
-    return train_data, test_data
+    return background, evaluation
