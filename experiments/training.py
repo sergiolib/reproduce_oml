@@ -81,10 +81,28 @@ def mrcl_pretrain(s_learn, s_remember, rln, tln, params):
         x_meta = tf.concat([x_rand, x_traj], axis=0)
         y_meta = tf.concat([y_rand, y_traj], axis=0)
 
-        with tf.GradientTape() as tape:
+        with tf.GradientTape(persistent=True) as tape:
             representations = rln(x_meta)
             outputs = tln_inner(representations)
             loss = params["loss_metric"](outputs, y_meta)
-            gradients = tape.gradient(loss, tln_inner.trainable_variables)
-            meta_optimizer.apply_gradients(zip(gradients, tln.trainable_variables))
+            tln_gradients = tape.gradient(loss, tln_inner.trainable_variables)
+            meta_optimizer.apply_gradients(zip(tln_gradients, tln.trainable_variables))
+            rln_gradients = tape.gradient(loss, rln.trainable_variables)
+            meta_optimizer.apply_gradients(zip(rln_gradients, rln.trainable_variables))
             trange.set_description(f"Training loss: {tf.reduce_mean(loss)}")
+
+        if i > 0 and i % 10 == 0:
+            try:
+                os.path.isdir("saved_models/")
+            except NotADirectoryError:
+                os.makedirs("save_models")
+            rln.save(f"saved_models/rln_{i}.tf", save_format="tf")
+            tln.save(f"saved_models/tln_{i}.tf", save_format="tf")
+
+    # Save final
+    try:
+        os.path.isdir("saved_models/")
+    except NotADirectoryError:
+        os.makedirs("save_models")
+    rln.save(f"saved_models/rln_final.tf", save_format="tf")
+    tln.save(f"saved_models/tln_final.tf", save_format="tf")
