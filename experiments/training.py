@@ -1,3 +1,4 @@
+import os
 import sys
 sys.path.append("")
 import tqdm
@@ -18,7 +19,9 @@ def split_data_in_2(data_dict, proportion=0.9):
     for i in range(2):
         split = {}
         for k, s in data_dict.items():
-            split[k] = s[ordered_inds[i]]
+            dtype = s.dtype
+            s = np.array(s)
+            split[k] = tf.convert_to_tensor(s[ordered_inds[i]], dtype=dtype)
         res.append(split)
     return res
 
@@ -31,8 +34,12 @@ def copy_parameters(source, dest):
 
 def sample_trajectory(data_list, start, size):
     ret = []
+    inds = np.random.permutation(size)
     for d in data_list:
-        ret.append(tf.reshape(d[start:start+size], (size, -1)))
+        start = start % len(d)
+        v = tf.reshape(d[start:start+size], (size, -1))
+        v = tf.convert_to_tensor(np.array(v)[inds])
+        ret.append(v)
     return tuple(ret)
 
 
@@ -53,43 +60,49 @@ def mrcl_pretrain(s_learn, s_remember, rln, tln, params):
     
     # Main loop
     trange = tqdm.tqdm(range(params["total_gradient_updates"]))
-    for i in trange:
-        # Random reinitialization
-        w = tln.layers[-1].weights[0]
-        new_w = tln.layers[-1].kernel_initializer(shape=w.shape)
-        tln.layers[-1].weights[0].assign(new_w)
+    # Initialize optimizer
+    meta_optimizer_inner = params["meta_optimizer"](learning_rate=params["inner_learning_rate"])
+    meta_optimizer_outer = params["meta_optimizer"](learning_rate=params["meta_learning_rate"])
 
-        # Copy parameters of tln to inner tln
-        copy_parameters(tln, tln_inner)
+    # k is the amount of samples of each class
+    k = int(len(s_learn[0]) / 10)
 
-        # Initialize optimizer
-        inner_optimizer = params["inner_optimizer"](learning_rate=params["inner_learning_rate"])
-        meta_optimizer = params["meta_optimizer"](learning_rate=params["meta_learning_rate"])
+    for i in trange:  # each of the 40 optimizations
+        for n in range(10):  # each of the 10 classes
+            # Random reinitialization
+            w = tln.layers[-1].weights[0]
+            new_w = tln.layers[-1].kernel_initializer(shape=w.shape)
+            tln.layers[-1].weights[0].assign(new_w)
 
-        # Sample x_traj, y_traj from S_learn
-        x_traj, y_traj = sample_trajectory(s_learn, i * params["inner_steps"], params["inner_steps"])
-        for j in range(params["inner_steps"]):
-            with tf.GradientTape() as tape:
-                representations = rln(tf.reshape(x_traj[j], (1, -1)))
-                outputs = tln_inner(representations)
-                loss = params["loss_metric"](outputs, y_traj[j])
+            # Copy parameters of tln to inner tln
+            copy_parameters(tln, tln_inner)
+
+            # Sample x_traj, y_traj from S_learn
+            x_traj, y_traj = sample_trajectory(s_learn, n * k, k)
+            for j in range(k):
+                with tf.GradientTape() as tape:
+                    representations = rln(tf.reshape(x_traj[j], (1, -1)), training=True)
+                    outputs = tln_inner(representations, training=True)
+                    loss = params["loss_metric"](outputs, y_traj[j])
                 gradients = tape.gradient(loss, tln_inner.trainable_variables)
-                inner_optimizer.apply_gradients(zip(gradients, tln_inner.trainable_variables))
+                meta_optimizer_inner.apply_gradients(zip(gradients, tln_inner.trainable_variables))
 
-        # Sample x_rand, y_rand from s_remember
-        x_rand, y_rand = random_sample(s_remember, params["random_batch_size"])
-        x_meta = tf.concat([x_rand, x_traj], axis=0)
-        y_meta = tf.concat([y_rand, y_traj], axis=0)
+            # Sample x_rand, y_rand from s_remember
+            x_rand, y_rand = random_sample(s_remember, params["random_batch_size"])
+            x_meta = tf.concat([x_rand, x_traj], axis=0)
+            y_meta = tf.concat([y_rand, y_traj], axis=0)
 
-        with tf.GradientTape(persistent=True) as tape:
-            representations = rln(x_meta)
-            outputs = tln_inner(representations)
-            loss = params["loss_metric"](outputs, y_meta)
-            tln_gradients = tape.gradient(loss, tln_inner.trainable_variables)
-            meta_optimizer.apply_gradients(zip(tln_gradients, tln.trainable_variables))
-            rln_gradients = tape.gradient(loss, rln.trainable_variables)
-            meta_optimizer.apply_gradients(zip(rln_gradients, rln.trainable_variables))
-            trange.set_description(f"Training loss: {tf.reduce_mean(loss)}")
+            with tf.GradientTape() as tape:
+                representations = rln(x_meta)
+                outputs = tln_inner(representations)
+                loss = params["loss_metric"](outputs, y_meta)
+
+            tln_gradients, rln_gradients = tape.gradient(loss, [tln_inner.trainable_variables, rln.trainable_variables])
+            meta_optimizer_outer.apply_gradients(zip(tln_gradients, tln.trainable_variables))
+            meta_optimizer_outer.apply_gradients(zip(rln_gradients, rln.trainable_variables))
+
+        loss = tf.reduce_mean(params["loss_metric"](tln(rln(s_learn[0])), s_learn[1]))
+        trange.set_description(f"{loss}")
 
         if i > 0 and i % 10 == 0:
             try:
@@ -106,3 +119,19 @@ def mrcl_pretrain(s_learn, s_remember, rln, tln, params):
         os.makedirs("save_models")
     rln.save(f"saved_models/rln_final.tf", save_format="tf")
     tln.save(f"saved_models/tln_final.tf", save_format="tf")
+
+
+def mrcl_evaluate(data, rln, tln, params):
+    batch_size = params["random_batch_size"]
+    optimizer = params["online_optimizer"](learning_rate=params["inner_learning_rate"])
+    results = []
+    for i in range(0, len(data["x"]), batch_size):
+        batch = {a: data[a][i:i + batch_size] for a in data}
+        with tf.GradientTape() as tape:
+            representations = rln(batch["x"])
+            outputs = tln(representations)
+            loss = params["loss_metric"](outputs, batch["y"])
+        tln_gradients = tape.gradient(loss, tln.trainable_variables)
+        optimizer.apply_gradients(zip(tln_gradients, tln.trainable_variables))
+        results += [np.array(outputs)]
+    return np.concatenate(results)
