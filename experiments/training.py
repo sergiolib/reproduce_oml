@@ -36,7 +36,8 @@ def sample_trajectory(data_list, start, size):
     ret = []
     inds = np.random.permutation(size)
     for d in data_list:
-        start = start % len(d)
+        assert start < len(d), "Start value is incorrect for the inputs given"
+        assert len(d) >= start + size, "Provided size is incompatible with the requested size"
         v = tf.reshape(d[start:start+size], (size, -1))
         v = tf.convert_to_tensor(np.array(v)[inds])
         ret.append(v)
@@ -54,54 +55,58 @@ def random_sample(data_list, batch_size):
     return tuple(results)
 
 
+def sample_trajectory_wrap(data, start, size):
+    x_len = len(data[0])
+    space_left_forward = x_len - start
+
+    x_traj, y_traj = sample_trajectory(data, start,
+                                       min(space_left_forward, size))
+    if space_left_forward < size:
+        x_traj_2, y_traj_2 = sample_trajectory(data, 0, size - space_left_forward)
+        x_traj = tf.concat([x_traj, x_traj_2], axis=0)
+        y_traj = tf.concat([y_traj, y_traj_2], axis=0)
+    return x_traj, y_traj
+
+
 def mrcl_pretrain(s_learn, s_remember, rln, tln, params):
-    # Create auxiliary model
-    tln_inner = tf.keras.models.clone_model(tln)  # For inner calculations
-    
     # Main loop
     trange = tqdm.tqdm(range(params["total_gradient_updates"]))
     # Initialize optimizer
     meta_optimizer_inner = params["meta_optimizer"](learning_rate=params["inner_learning_rate"])
     meta_optimizer_outer = params["meta_optimizer"](learning_rate=params["meta_learning_rate"])
 
-    # k is the amount of samples of each class
-    k = int(len(s_learn[0]) / 10)
-
     for i in trange:  # each of the 40 optimizations
-        for n in range(10):  # each of the 10 classes
-            # Random reinitialization
-            w = tln.layers[-1].weights[0]
-            new_w = tln.layers[-1].kernel_initializer(shape=w.shape)
-            tln.layers[-1].weights[0].assign(new_w)
+        # Random reinitialization
+        w = tln.layers[-1].weights[0]
+        new_w = tln.layers[-1].kernel_initializer(shape=w.shape)
+        tln.layers[-1].weights[0].assign(new_w)
 
-            # Copy parameters of tln to inner tln
-            copy_parameters(tln, tln_inner)
+        # Sample x_traj, y_traj from S_learn
+        x_traj, y_traj = sample_trajectory_wrap(s_learn, (i * params["inner_steps"]) % len(s_learn[0]), params["inner_steps"])
 
-            # Sample x_traj, y_traj from S_learn
-            x_traj, y_traj = sample_trajectory(s_learn, n * k, k)
-            for j in range(k):
-                with tf.GradientTape() as tape:
-                    representations = rln(tf.reshape(x_traj[j], (1, -1)), training=True)
-                    outputs = tln_inner(representations, training=True)
-                    loss = params["loss_metric"](outputs, y_traj[j])
-                gradients = tape.gradient(loss, tln_inner.trainable_variables)
-                meta_optimizer_inner.apply_gradients(zip(gradients, tln_inner.trainable_variables))
+        with tf.GradientTape() as outer_tape:
+            for j in range(params["inner_steps"]):
+                with tf.GradientTape() as inner_tape:
+                    representations = rln(tf.reshape(x_traj[j], (1, -1)))
+                    outputs = tln(representations)
+                    inner_loss = params["loss_metric"](outputs, y_traj[j])
+                gradients = inner_tape.gradient(inner_loss, tln.trainable_variables)
+                meta_optimizer_inner.apply_gradients(zip(gradients, tln.trainable_variables))
 
             # Sample x_rand, y_rand from s_remember
             x_rand, y_rand = random_sample(s_remember, params["random_batch_size"])
             x_meta = tf.concat([x_rand, x_traj], axis=0)
             y_meta = tf.concat([y_rand, y_traj], axis=0)
 
-            with tf.GradientTape() as tape:
-                representations = rln(x_meta)
-                outputs = tln_inner(representations)
-                loss = params["loss_metric"](outputs, y_meta)
+            representations = rln(x_meta)
+            outputs = tln(representations)
+            outer_loss = params["loss_metric"](outputs, y_meta)
 
-            tln_gradients, rln_gradients = tape.gradient(loss, [tln_inner.trainable_variables, rln.trainable_variables])
-            meta_optimizer_outer.apply_gradients(zip(tln_gradients, tln.trainable_variables))
-            meta_optimizer_outer.apply_gradients(zip(rln_gradients, rln.trainable_variables))
+        tln_gradients, rln_gradients = outer_tape.gradient(outer_loss, [tln.trainable_variables, rln.trainable_variables])
+        meta_optimizer_outer.apply_gradients(zip(tln_gradients, tln.trainable_variables))
+        meta_optimizer_outer.apply_gradients(zip(rln_gradients, rln.trainable_variables))
 
-        loss = tf.reduce_mean(params["loss_metric"](tln(rln(s_learn[0])), s_learn[1]))
+        loss = tf.reduce_mean(params["loss_metric"](tln(rln(s_remember[0])), s_remember[1]))
         trange.set_description(f"{loss}")
 
         if i > 0 and i % 10 == 0:
