@@ -68,6 +68,22 @@ def sample_trajectory_wrap(data, start, size):
     return x_traj, y_traj
 
 
+@tf.function
+def compute_loss(x, y, rln, tln, loss_fun):
+    output = tln(rln(x))
+    loss = loss_fun(output, y)
+    return loss
+
+
+@tf.function
+def inner_update(x, y, rln, tln, loss_fun, optimizer):
+    with tf.GradientTape(watch_accessed_variables=False) as Wj_Tape:
+        Wj_Tape.watch(tln.trainable_variables)
+        inner_loss = compute_loss(tf.reshape(x, (1, -1)), y, rln, tln, loss_fun)
+    gradients = Wj_Tape.gradient(inner_loss, tln.trainable_variables)
+    optimizer.apply_gradients(zip(gradients, tln.trainable_variables))
+
+
 def mrcl_pretrain(s_learn, s_remember, rln, tln, params):
     # Main loop
     trange = tqdm.tqdm(range(params["total_gradient_updates"]))
@@ -78,9 +94,9 @@ def mrcl_pretrain(s_learn, s_remember, rln, tln, params):
 
     for i in trange:  # each of the 40 optimizations
         # Random reinitialization of last layer
-        # w = tln.layers[-1].weights[0]
-        # new_w = tln.layers[-1].kernel_initializer(shape=w.shape)
-        # tln.layers[-1].weights[0].assign(new_w)
+        w = tln.layers[-1].weights[0]
+        new_w = tln.layers[-1].kernel_initializer(shape=w.shape)
+        tln.layers[-1].weights[0].assign(new_w)
 
         # Clone tln to preserve initial weights
         tln_initial = tf.keras.models.clone_model(tln)
@@ -91,12 +107,12 @@ def mrcl_pretrain(s_learn, s_remember, rln, tln, params):
         with tf.GradientTape(watch_accessed_variables=False) as W_Tape:
             W_Tape.watch(tln.trainable_variables)
             for j in range(params["inner_steps"]):
-                with tf.GradientTape(watch_accessed_variables=False) as Wj_Tape:
-                    Wj_Tape.watch(tln.trainable_variables)
-                    output = tln(rln(tf.reshape(x_traj[j], (1, -1))))
-                    inner_loss = loss_fun(output, y_traj[j])
-                gradients = Wj_Tape.gradient(inner_loss, tln.trainable_variables)
-                meta_optimizer_inner.apply_gradients(zip(gradients, tln.trainable_variables))
+                # with tf.GradientTape(watch_accessed_variables=False) as Wj_Tape:
+                #     Wj_Tape.watch(tln.trainable_variables)
+                #     inner_loss = compute_loss(tf.reshape(x_traj[j], (1, -1)), y_traj[j], rln, tln, loss_fun)
+                # gradients = Wj_Tape.gradient(inner_loss, tln.trainable_variables)
+                # meta_optimizer_inner.apply_gradients(zip(gradients, tln.trainable_variables))
+                inner_update(x_traj[j], y_traj[j], rln, tln, loss_fun, meta_optimizer_inner)
 
             # Sample x_rand, y_rand from s_remember
             x_rand, y_rand = random_sample(s_remember, params["random_batch_size"])
@@ -108,8 +124,7 @@ def mrcl_pretrain(s_learn, s_remember, rln, tln, params):
 
             with tf.GradientTape(watch_accessed_variables=False) as theta_Tape:
                 theta_Tape.watch(rln.trainable_variables)
-                outputs = tln(rln(x_meta))
-                outer_loss = loss_fun(outputs, y_meta)
+                outer_loss = compute_loss(x_meta, y_meta, rln, tln, loss_fun)
 
         tln_gradients = W_Tape.gradient(outer_loss, tln.trainable_variables)
         # prv = float(tln_initial.trainable_variables[0][0, 0])
