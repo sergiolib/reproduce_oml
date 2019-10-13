@@ -75,24 +75,23 @@ def compute_loss(x, y, rln, tln, loss_fun):
     return loss
 
 
-@tf.function
-def inner_update(x, y, rln, tln, loss_fun, optimizer):
-    with tf.GradientTape(watch_accessed_variables=False) as Wj_Tape:
-        Wj_Tape.watch(tln.trainable_variables)
-        inner_loss = compute_loss(tf.reshape(x, (1, -1)), y, rln, tln, loss_fun)
-    gradients = Wj_Tape.gradient(inner_loss, tln.trainable_variables)
-    optimizer.apply_gradients(zip(gradients, tln.trainable_variables))
-
-
 def mrcl_pretrain(s_learn, s_remember, rln, tln, params):
-    # Main loop
-    trange = tqdm.tqdm(range(params["total_gradient_updates"]))
     # Initialize optimizer
     meta_optimizer_inner = params["meta_optimizer"](learning_rate=params["inner_learning_rate"])
     meta_optimizer_outer = params["meta_optimizer"](learning_rate=params["meta_learning_rate"])
     loss_fun = params["loss_metric"]
 
-    for i in trange:  # each of the 40 optimizations
+    def inner_update(x, y, rln, tln, loss_fun, optimizer):
+        with tf.GradientTape(watch_accessed_variables=False) as Wj_Tape:
+            Wj_Tape.watch(tln.trainable_variables)
+            inner_loss = compute_loss(tf.reshape(x, (1, -1)), y, rln, tln, loss_fun)
+        gradients = Wj_Tape.gradient(inner_loss, tln.trainable_variables)
+        optimizer.apply_gradients(zip(gradients, tln.trainable_variables))
+
+    inner_update = tf.function(inner_update)
+
+    # for i in range(params["total_gradient_updates"]):  # each of the 40 optimizations
+    for i in range(10):  # each of the 40 optimizations
         # Random reinitialization of last layer
         w = tln.layers[-1].weights[0]
         new_w = tln.layers[-1].kernel_initializer(shape=w.shape)
@@ -138,37 +137,26 @@ def mrcl_pretrain(s_learn, s_remember, rln, tln, params):
 
         copy_parameters(tln_initial, tln)
 
-        loss = tf.reduce_mean(params["loss_metric"](tln(rln(s_remember[0])), s_remember[1]))
-        trange.set_description(f"{loss}")
-
-        if i > 0 and i % 10 == 0:
-            try:
-                os.path.isdir("saved_models/")
-            except NotADirectoryError:
-                os.makedirs("save_models")
-            rln.save(f"saved_models/rln_{i}.tf", save_format="tf")
-            tln.save(f"saved_models/tln_{i}.tf", save_format="tf")
-
-    # Save final
-    try:
-        os.path.isdir("saved_models/")
-    except NotADirectoryError:
-        os.makedirs("save_models")
-    rln.save(f"saved_models/rln_final.tf", save_format="tf")
-    tln.save(f"saved_models/tln_final.tf", save_format="tf")
-
 
 def mrcl_evaluate(data, rln, tln, params):
     batch_size = params["random_batch_size"]
     optimizer = params["online_optimizer"](learning_rate=params["inner_learning_rate"])
     loss_fun = params["loss_metric"]
     results = []
-    for i in range(0, len(data["x"]), batch_size):
-        batch = {a: data[a][i:i + batch_size] for a in data}
-        with tf.GradientTape() as tape:
-            outputs = tln(rln(batch["x"]))
-            loss = loss_fun(outputs, batch["y"])
-        tln_gradients = tape.gradient(loss, tln.trainable_variables)
-        optimizer.apply_gradients(zip(tln_gradients, tln.trainable_variables))
-        results += [np.array(outputs)]
+    samples_per_task = int(len(data["x"]) / 10)
+    samples_per_task_training = int(round(samples_per_task * 0.8))
+    for t in tqdm.trange(params["inner_steps"]):
+        for i in range(samples_per_task*t, samples_per_task*t + samples_per_task_training, batch_size):
+            batch = {a: data[a][i:i + batch_size] for a in data}
+            with tf.GradientTape() as tape:
+                loss = compute_loss(batch["x"], batch["y"], rln, tln, loss_fun)
+                # outputs = tln(rln(batch["x"]))
+                # loss = loss_fun(outputs, batch["y"])
+            tln_gradients = tape.gradient(loss, tln.trainable_variables)
+            optimizer.apply_gradients(zip(tln_gradients, tln.trainable_variables))
+
+        # Test
+        test_set = {a: data[a][samples_per_task*t + samples_per_task_training:samples_per_task*(t+1)] for a in data}
+        loss = compute_loss(test_set["x"], test_set["y"], rln, tln, loss_fun)  # tln(rln(test_set["x"]))
+        results += [float(tf.reduce_mean(loss))]
     return np.concatenate(results)
