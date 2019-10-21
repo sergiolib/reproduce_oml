@@ -212,7 +212,7 @@ for rs in range(40):
     
     # Convert to tf.data.Dataset format
     s_learn = tf.data.Dataset.from_tensor_slices((x_learn, y_learn)).shuffle(len(x_learn)).batch(400)
-    s_remember = tf.data.Dataset.from_tensor_slices((x_remember, y_remember)).shuffle(len(x_remember)).batch(400)
+    s_remember = tf.data.Dataset.from_tensor_slices((x_remember, y_remember)).shuffle(len(x_remember)).batch(8)
         
     # Pretrain on
     mrcl_pretrain(s_learn, s_remember)

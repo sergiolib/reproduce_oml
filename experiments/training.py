@@ -1,5 +1,8 @@
 import os
 import sys
+from itertools import product
+from random import sample
+
 sys.path.append("")
 import tqdm
 import tensorflow as tf
@@ -75,6 +78,28 @@ def compute_loss(x, y, rln, tln, loss_fun):
     return loss
 
 
+def sample_trajectory_generators(s_learn, max_samples):
+    inds_id = np.arange(len(s_learn[0]))
+    seqs_id = np.arange(len(s_learn[0][0]))
+    samples_id = np.arange(len(s_learn[0][0][0]))
+    prod = list(product(inds_id, seqs_id, samples_id))
+    np.random.shuffle(prod)
+    last_sample = 0
+    while True:
+        samples_x, samples_y = [], []
+        while len(samples_x) < max_samples:
+            i, j, k = prod[last_sample]
+            samples_x.append(s_learn[0][i, j, k])
+            samples_y.append(s_learn[1][i, j, k])
+            last_sample += 1
+
+        samples_x = np.vstack(samples_x)
+        samples_y = np.hstack(samples_y)
+
+        yield samples_x, samples_y
+
+
+
 def mrcl_pretrain(s_learn, s_remember, rln, tln, params):
     # Initialize optimizer
     meta_optimizer_inner = params["meta_optimizer"](learning_rate=params["inner_learning_rate"])
@@ -90,8 +115,9 @@ def mrcl_pretrain(s_learn, s_remember, rln, tln, params):
 
     inner_update = tf.function(inner_update)
 
-    # for i in range(params["total_gradient_updates"]):  # each of the 40 optimizations
-    for i in range(10):  # each of the 40 optimizations
+    data_generator = sample_trajectory_generators(s_learn, params["inner_steps"])
+
+    for i in range(params["total_gradient_updates"]):  # each of the 40 optimizations
         # Random reinitialization of last layer
         w = tln.layers[-1].weights[0]
         new_w = tln.layers[-1].kernel_initializer(shape=w.shape)
@@ -100,18 +126,15 @@ def mrcl_pretrain(s_learn, s_remember, rln, tln, params):
         # Clone tln to preserve initial weights
         tln_initial = tf.keras.models.clone_model(tln)
 
-        # Sample x_traj, y_traj from S_learn
-        x_traj, y_traj = sample_trajectory_wrap(s_learn, (i * params["inner_steps"]) % len(s_learn[0]), params["inner_steps"])
-
         with tf.GradientTape(watch_accessed_variables=False) as W_Tape:
             W_Tape.watch(tln.trainable_variables)
-            for j in range(params["inner_steps"]):
+            for x_traj, y_traj in data_generator:
                 # with tf.GradientTape(watch_accessed_variables=False) as Wj_Tape:
                 #     Wj_Tape.watch(tln.trainable_variables)
                 #     inner_loss = compute_loss(tf.reshape(x_traj[j], (1, -1)), y_traj[j], rln, tln, loss_fun)
                 # gradients = Wj_Tape.gradient(inner_loss, tln.trainable_variables)
                 # meta_optimizer_inner.apply_gradients(zip(gradients, tln.trainable_variables))
-                inner_update(x_traj[j], y_traj[j], rln, tln, loss_fun, meta_optimizer_inner)
+                inner_update(x_traj, y_traj, rln, tln, loss_fun, meta_optimizer_inner)
 
             # Sample x_rand, y_rand from s_remember
             x_rand, y_rand = random_sample(s_remember, params["random_batch_size"])

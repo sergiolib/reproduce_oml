@@ -7,7 +7,7 @@ import tqdm
 
 sys.path.append("../../datasets")
 sys.path.append("../")
-from synth_datasets import gen_sine_data, partition_sine_data
+from synth_datasets import gen_sine_data
 from training import split_data_in_2, mrcl_pretrain, mrcl_evaluate
 from isw import mrcl_isw
 import numpy as np
@@ -23,17 +23,6 @@ regression_parameters = {
     "meta_optimizer": tf.optimizers.Adam,
     "random_batch_size": 8  # len(X_rand)
 }
-partition = partition_sine_data(gen_sine_data(n_id=900))
-pretraining = partition["pretraining"]
-evaluation = partition["evaluation"]
-
-pretraining["z"] = tf.convert_to_tensor(pretraining["z"], dtype=tf.float32)
-pretraining["k"] = tf.convert_to_tensor(pretraining["k"], dtype=tf.int32)
-pretraining["y"] = tf.convert_to_tensor(pretraining["y"], dtype=tf.float32)
-
-evaluation["z"] = tf.convert_to_tensor(evaluation["z"], dtype=tf.float32)
-evaluation["k"] = tf.convert_to_tensor(evaluation["k"], dtype=tf.int32)
-evaluation["y"] = tf.convert_to_tensor(evaluation["y"], dtype=tf.float32)
 
 rln, tln = mrcl_isw(one_hot_depth=10)  # Actual model
 
@@ -82,12 +71,6 @@ def do_one_hot(input_data):
     return input_data
 
 
-pretraining_fs = np.unique(partition["pretraining"]["k"])
-np.random.shuffle(pretraining_fs)
-eval_fs = np.unique(partition["evaluation"]["k"])
-np.random.shuffle(eval_fs)
-
-
 def save_models(rs, rln, tln):
     try:
         os.path.isdir("saved_models/")
@@ -111,14 +94,15 @@ def calculate_error_distribution(unseen_data, rln, tln, loss_fun, n_tasks=10,):
 trange = tqdm.trange(40)
 for rs in trange:
     # Sample 10 functions from the 400 for this pretraining
-    f_inds_tr = pretraining_fs[rs*10:rs*10 + 10]
+    data = gen_sine_data(n_functions=10)
+
+    pretraining = {}
+
+    pretraining["x"] = tf.convert_to_tensor(data[0], dtype=tf.float32)
+    pretraining["y"] = tf.convert_to_tensor(data[1], dtype=tf.float32)
 
     # Prepare data input
-    train_data = concat_dicts([data_with_k_equals(pretraining, k) for k in f_inds_tr])
-    reassign_k_values(train_data, f_inds_tr)
-    train_data = do_one_hot(train_data)
-    train_data = join_z_and_k(train_data)
-    s_learn, s_remember = split_data_in_2(train_data, 0.8)
+    s_learn, s_remember = split_data_in_2(pretraining, 0.8)
     # Pretrain on
     mrcl_pretrain((s_learn["x"], s_learn["y"]), (s_remember["x"], s_remember["y"]), rln, tln, regression_parameters)
 
