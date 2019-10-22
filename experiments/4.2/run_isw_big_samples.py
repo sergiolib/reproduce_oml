@@ -1,15 +1,21 @@
+import datetime
 import os
+from shutil import rmtree
 
 import tensorflow as tf
 import sys
 import numpy as np
 import tqdm
 
+from math import pi
+from random import sample
+
 sys.path.append("experiments/4.2/")
 from isw import mrcl_isw
 
 regression_parameters = {
     "inner_learning_rate": 3e-3,  # beta
+    "meta_learning_rate": 1e-4,  # beta
     "total_gradient_updates": 40,  # n
     "inner_batch_size": 400,  # len(X_traj)
     "inner_steps": 400,  # k
@@ -67,7 +73,7 @@ def do_one_hot(input_data):
     return input_data
 
 
-def save_models(rs, rln, tln):
+def save_models(rs):
     try:
         os.path.isdir("saved_models/")
     except NotADirectoryError:
@@ -106,7 +112,7 @@ def sample_trajectory_generators(s_learn, max_samples):
 
         yield samples_x, samples_y
 
-@tf.function
+# @tf.function
 def inner_update(x, y):
     with tf.GradientTape(watch_accessed_variables=False) as Wj_Tape:
         Wj_Tape.watch(tln.trainable_variables)
@@ -114,17 +120,11 @@ def inner_update(x, y):
     gradients = Wj_Tape.gradient(inner_loss, tln.trainable_variables)
     meta_optimizer_inner.apply_gradients(zip(gradients, tln.trainable_variables))
 
-@tf.function
+#@tf.function
 def compute_loss(x, y):
     output = tln(rln(x))
     loss = loss_fun(output, y)
     return loss
-
-""" Loader file for synthetic datasets"""
-
-import numpy as np
-from math import pi
-from random import sample
 
 # Constant Sine values as defined in section 4.1
 amp_min = 0.1
@@ -133,7 +133,6 @@ phase_min = 0
 phase_max = pi
 z_min = -5
 z_max = 5
-
 
 def gen_sine_data(tasks=None, n_functions=10, sample_length=32, repetitions=40):
     """
@@ -177,56 +176,50 @@ def gen_sine_data(tasks=None, n_functions=10, sample_length=32, repetitions=40):
     return x_traj, y_traj, x_rand, y_rand, tasks
 
 rln, tln = mrcl_isw(one_hot_depth=10)  # Actual model
-loss_fun = tf.keras.losses.MSE
-meta_optimizer_inner = tf.keras.optimizers.Adam(learning_rate=regression_parameters["inner_learning_rate"])
-meta_optimizer_outer = tf.keras.optimizers.Adam(learning_rate=regression_parameters["inner_learning_rate"])
+loss_fun = tf.keras.losses.MeanSquaredError()
+meta_optimizer_inner = tf.keras.optimizers.SGD(learning_rate=regression_parameters["inner_learning_rate"])
+meta_optimizer_outer = tf.keras.optimizers.Adam(learning_rate=regression_parameters["meta_learning_rate"])
 
 def pretrain_mrcl(x_traj, y_traj, x_rand, y_rand):
     # Random reinitialization of last layer
-    #w = tln.layers[-1].weights[0]
-    #new_w = tln.layers[-1].kernel_initializer(shape=w.shape)
-    #tln.layers[-1].weights[0].assign(new_w)
+    w = tln.layers[-1].weights[0]
+    new_w = tln.layers[-1].kernel_initializer(shape=w.shape)
+    tln.layers[-1].weights[0].assign(new_w)
 
     # Clone tln to preserve initial weights
     tln_initial = tf.keras.models.clone_model(tln)
-        
-    with tf.GradientTape(watch_accessed_variables=False) as W_Tape:
-        W_Tape.watch(tln.trainable_variables)
-        for x, y in tf.data.Dataset.from_tensor_slices((x_traj, y_traj)):
-            inner_update(x, y)
 
-        # Sample x_rand, y_rand from s_remember
-        x_traj_unrolled = []
-        for x in x_traj:
-            x_traj_unrolled.append(x)
+    # Sample x_rand, y_rand from s_remember
+    x_traj_f = tf.concat([x for x in x_traj], axis=0)
+    y_traj_f = tf.concat([y for y in y_traj], axis=0)
 
-        xt = tf.concat(x_traj_unrolled, axis=0)
+    x_meta = tf.concat([x_rand, x_traj_f], axis=0)
+    y_meta = tf.concat([y_rand, y_traj_f], axis=0)
 
-        y_traj_unrolled = []
-        for y in y_traj:
-            y_traj_unrolled.append(y)
+    for x, y in tf.data.Dataset.from_tensor_slices((x_traj, y_traj)):
+        inner_update(x, y)
 
-        yt = tf.concat(y_traj_unrolled, axis=0)
+    with tf.GradientTape(persistent=True) as theta_Tape:
+        outer_loss = compute_loss(x_meta, y_meta)
 
-        x_meta = tf.concat([x_rand, xt], axis=0)
-        y_meta = tf.concat([y_rand, yt], axis=0)
-
-        with tf.GradientTape(watch_accessed_variables=False) as theta_Tape:
-            theta_Tape.watch(rln.trainable_variables)
-            outer_loss = compute_loss(x_meta, y_meta)
-
-    tln_gradients = W_Tape.gradient(outer_loss, tln.trainable_variables)
-    meta_optimizer_outer.apply_gradients(zip(tln_gradients, tln_initial.trainable_variables))
+    tln_gradients = theta_Tape.gradient(outer_loss, tln.trainable_variables)
     rln_gradients = theta_Tape.gradient(outer_loss, rln.trainable_variables)
-    meta_optimizer_outer.apply_gradients(zip(rln_gradients, rln.trainable_variables))
+    del theta_Tape
+    meta_optimizer_outer.apply_gradients(zip(tln_gradients + rln_gradients, tln_initial.trainable_variables + rln.trainable_variables))
 
     copy_parameters(tln_initial, tln)
-    
-    return tf.reduce_mean(outer_loss)
 
-t = tqdm.trange(2000)
-x_traj, y_traj, x_rand, y_rand, tasks = gen_sine_data(n_functions=10, sample_length=32, repetitions=40)
-for i, v in enumerate(t):
+    return outer_loss
+
+t = tqdm.trange(20000)
+tasks = None
+
+current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+train_log_dir = 'logs/gradient_tape/' + current_time + '/train'
+rmtree('logs')
+train_summary_writer = tf.summary.create_file_writer(train_log_dir)
+
+for epoch, v in enumerate(t):
     x_traj, y_traj, x_rand, y_rand, tasks = gen_sine_data(tasks=tasks, n_functions=10, sample_length=32, repetitions=40)
     
     x_traj = np.vstack(x_traj)
@@ -246,5 +239,12 @@ for i, v in enumerate(t):
     # Check metrics
     rep = rln(x_rand)
     rep = np.array(rep)
-    counts = np.count_nonzero(rep, axis=1) / rep.shape[1]
-    t.set_description(f"Non sparsity: {np.mean(counts)}\tTraining loss: {loss}")
+    counts = np.isclose(rep, 0).sum(axis=1) / rep.shape[1]
+    sparsity = np.mean(counts)
+    with train_summary_writer.as_default():
+        tf.summary.scalar('Sparsity', sparsity, step=epoch)
+        tf.summary.scalar('Training loss', loss, step=epoch)
+    t.set_description(f"Sparsity: {sparsity}\tTraining loss: {loss}")
+
+    if epoch % 100 == 0 and epoch > 0:
+        save_models(epoch)
