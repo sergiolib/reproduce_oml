@@ -5,18 +5,13 @@ import sys
 import numpy as np
 import tqdm
 
-sys.path.append("datasets/")
-from synth_datasets import gen_sine_data
-
-sys.path.append("experiments/")
-from training import split_data_in_2#, mrcl_pretrain, mrcl_evaluate
-
 sys.path.append("experiments/4.2/")
 from isw import mrcl_isw
 
 regression_parameters = {
     "inner_learning_rate": 3e-3,  # beta
     "total_gradient_updates": 40,  # n
+    "inner_batch_size": 400,  # len(X_traj)
     "inner_steps": 400,  # k
     "online_optimizer": tf.optimizers.SGD,
     "random_batch_size": 8  # len(X_rand)
@@ -125,100 +120,131 @@ def compute_loss(x, y):
     loss = loss_fun(output, y)
     return loss
 
+""" Loader file for synthetic datasets"""
 
-def mrcl_pretrain(s_learn, s_remember):
-    #for i in range(params["total_gradient_updates"]):  # each of the 40 optimizations
-    for i in range(regression_parameters["total_gradient_updates"]):
-        i_learn = iter(s_learn)
-        i_rem = iter(s_remember)
-        # Random reinitialization of last layer
-        w = tln.layers[-1].weights[0]
-        new_w = tln.layers[-1].kernel_initializer(shape=w.shape)
-        tln.layers[-1].weights[0].assign(new_w)
+import numpy as np
+from math import pi
+from random import sample
 
-        # Clone tln to preserve initial weights
-        tln_initial = tf.keras.models.clone_model(tln)
+# Constant Sine values as defined in section 4.1
+amp_min = 0.1
+amp_max = 5
+phase_min = 0
+phase_max = pi
+z_min = -5
+z_max = 5
 
-        with tf.GradientTape(watch_accessed_variables=False) as W_Tape:
-            W_Tape.watch(tln.trainable_variables)
-            for x_traj, y_traj in i_learn:
-                # with tf.GradientTape(watch_accessed_variables=False) as Wj_Tape:
-                #     Wj_Tape.watch(tln.trainable_variables)
-                #     inner_loss = compute_loss(tf.reshape(x_traj[j], (1, -1)), y_traj[j], rln, tln, loss_fun)
-                # gradients = Wj_Tape.gradient(inner_loss, tln.trainable_variables)
-                # meta_optimizer_inner.apply_gradients(zip(gradients, tln.trainable_variables))
-                inner_update(x_traj, y_traj)
 
-            # Sample x_rand, y_rand from s_remember
-            x_rand, y_rand = next(i_rem)
-            x_meta = tf.concat([x_rand, x_traj], axis=0)
-            y_meta = tf.concat([y_rand, y_traj], axis=0)
-            #inds = np.random.permutation(len(x_meta))
-            #x_meta = tf.gather(x_meta, inds)
-            #y_meta = tf.gather(y_meta, inds)
+def gen_sine_data(tasks=None, n_functions=10, sample_length=32, repetitions=40):
+    """
+    Generate synthetic Incremental Sine Waves as defined in section 4.1
+    :param n_id: number of functions to use (default is 10 as defined in the paper)
+    :param sample_length: number of samples per function (default is 32 as defined in the paper)
+    :return:
+    """
+    if tasks is None:
+        tasks = {}
+        # Sample amplitude for each function
+        tasks["amplitude"] = np.random.uniform(amp_min, amp_max, size=400)
+        # Sample phase for each function
+        tasks["phase"] = np.random.uniform(phase_min, phase_max, 400)
+    subsample = sample(list(zip(tasks["amplitude"], tasks["phase"])), 10)
+    amplitude = [s[0] for s in subsample]
+    phase = [s[1] for s in subsample]
+    # Sample z used as inputs of the sine functions
+    list_of_z = np.random.uniform(z_min, z_max, size=(n_functions, repetitions, sample_length))
 
-            with tf.GradientTape(watch_accessed_variables=False) as theta_Tape:
-                theta_Tape.watch(rln.trainable_variables)
-                outer_loss = compute_loss(x_meta, y_meta)
+    y_traj = np.zeros(shape=(n_functions, repetitions, sample_length))
+    y_rand = np.zeros(shape=(n_functions, sample_length))
 
-        tln_gradients = W_Tape.gradient(outer_loss, tln.trainable_variables)
-        # prv = float(tln_initial.trainable_variables[0][0, 0])
-        meta_optimizer_outer.apply_gradients(zip(tln_gradients, tln_initial.trainable_variables))
-        # aft = float(tln_initial.trainable_variables[0][0, 0])
-        # grd = float(tln_gradients[0][0, 0])
-        # if grd > 0:
-        #     assert aft != prv
-        rln_gradients = theta_Tape.gradient(outer_loss, rln.trainable_variables)
-        meta_optimizer_outer.apply_gradients(zip(rln_gradients, rln.trainable_variables))
+    x_traj = np.zeros(shape=(n_functions, repetitions, sample_length, n_functions + 1))
+    x_rand = np.zeros(shape=(n_functions, sample_length, n_functions + 1))
 
-        copy_parameters(tln_initial, tln)
+    # For every function sample samples_per_function instances of length sample_length
+    for ind in range(10):
+        for repetition in range(repetitions):
+            y_traj[ind, repetition, :] = np.sin(list_of_z[ind, repetition] + phase[ind]) * amplitude[ind]
+            x_traj[ind, repetition, :, 0] = list_of_z[ind, repetition]
+            x_traj[ind, repetition, :, 1 + ind] = 1
+            
+    list_of_z = np.random.uniform(z_min, z_max, size=(n_functions, sample_length))
+            
+    for ind in range(10):
+        y_rand[ind, :] = np.sin(list_of_z[ind, 0] + phase[ind]) * amplitude[ind]
+        x_rand[ind, :, 0] = list_of_z[ind]
+        x_rand[ind, :, 1 + ind] = 1
+
+    return x_traj, y_traj, x_rand, y_rand, tasks
 
 rln, tln = mrcl_isw(one_hot_depth=10)  # Actual model
 loss_fun = tf.keras.losses.MSE
-meta_optimizer_inner = tf.keras.optimizers.SGD(learning_rate=1e-4)
-meta_optimizer_outer = tf.keras.optimizers.Adam(learning_rate=1e-4)
-data = gen_sine_data(n_functions=10)
+meta_optimizer_inner = tf.keras.optimizers.Adam(learning_rate=regression_parameters["inner_learning_rate"])
+meta_optimizer_outer = tf.keras.optimizers.Adam(learning_rate=regression_parameters["inner_learning_rate"])
 
-for rs in range(40):
-    # Sample 10 functions from the 400 for this pretraining
-    data = gen_sine_data(n_functions=10)
+def pretrain_mrcl(x_traj, y_traj, x_rand, y_rand):
+    # Random reinitialization of last layer
+    #w = tln.layers[-1].weights[0]
+    #new_w = tln.layers[-1].kernel_initializer(shape=w.shape)
+    #tln.layers[-1].weights[0].assign(new_w)
 
-    x = tf.convert_to_tensor(data[0], dtype=tf.float32)
-    y = tf.convert_to_tensor(data[1], dtype=tf.float32)
-
-    x_learn = x[:, :, :312]
-    x_remember = x[:, :, 312:]
-
-    y_learn = y[:, :, :312]
-    y_remember = y[:, :, 312:]
-
-    # Reshapes
-    xp = tf.transpose(x_learn, [3, 0, 1, 2])
-    lx = xp.shape[0]
-    xpp = tf.reshape(xp, (lx, -1))
-    ypp = tf.reshape(y_learn, [-1])
-    xpp = tf.transpose(xpp)
-    y_learn = ypp
-    x_learn = xpp
-
-    # Reshapes
-    xp = tf.transpose(x_remember, [3, 0, 1, 2])
-    lx = xp.shape[0]
-    xpp = tf.reshape(xp, (lx, -1))
-    ypp = tf.reshape(y_remember, [-1])
-    xpp = tf.transpose(xpp)
-    y_remember = ypp
-    x_remember = xpp
-    
-    # Convert to tf.data.Dataset format
-    s_learn = tf.data.Dataset.from_tensor_slices((x_learn, y_learn)).shuffle(len(x_learn)).batch(400)
-    s_remember = tf.data.Dataset.from_tensor_slices((x_remember, y_remember)).shuffle(len(x_remember)).batch(8)
+    # Clone tln to preserve initial weights
+    tln_initial = tf.keras.models.clone_model(tln)
         
-    # Pretrain on
-    mrcl_pretrain(s_learn, s_remember)
+    with tf.GradientTape(watch_accessed_variables=False) as W_Tape:
+        W_Tape.watch(tln.trainable_variables)
+        for x, y in tf.data.Dataset.from_tensor_slices((x_traj, y_traj)):
+            inner_update(x, y)
 
-    non_sparse_vals = np.count_nonzero(rln(x_remember), axis=1)
-    print(f"{rs}: Non sparse elements: {np.mean(non_sparse_vals / 300)}")
+        # Sample x_rand, y_rand from s_remember
+        x_traj_unrolled = []
+        for x in x_traj:
+            x_traj_unrolled.append(x)
 
-    if rs % 10 == 0 and rs > 0:
-        save_models(rs, rln, tln)
+        xt = tf.concat(x_traj_unrolled, axis=0)
+
+        y_traj_unrolled = []
+        for y in y_traj:
+            y_traj_unrolled.append(y)
+
+        yt = tf.concat(y_traj_unrolled, axis=0)
+
+        x_meta = tf.concat([x_rand, xt], axis=0)
+        y_meta = tf.concat([y_rand, yt], axis=0)
+
+        with tf.GradientTape(watch_accessed_variables=False) as theta_Tape:
+            theta_Tape.watch(rln.trainable_variables)
+            outer_loss = compute_loss(x_meta, y_meta)
+
+    tln_gradients = W_Tape.gradient(outer_loss, tln.trainable_variables)
+    meta_optimizer_outer.apply_gradients(zip(tln_gradients, tln_initial.trainable_variables))
+    rln_gradients = theta_Tape.gradient(outer_loss, rln.trainable_variables)
+    meta_optimizer_outer.apply_gradients(zip(rln_gradients, rln.trainable_variables))
+
+    copy_parameters(tln_initial, tln)
+    
+    return tf.reduce_mean(outer_loss)
+
+t = tqdm.trange(2000)
+x_traj, y_traj, x_rand, y_rand, tasks = gen_sine_data(n_functions=10, sample_length=32, repetitions=40)
+for i, v in enumerate(t):
+    x_traj, y_traj, x_rand, y_rand, tasks = gen_sine_data(tasks=tasks, n_functions=10, sample_length=32, repetitions=40)
+    
+    x_traj = np.vstack(x_traj)
+
+    y_traj = np.vstack(y_traj)
+
+    x_rand = np.vstack(x_rand)
+
+    y_rand = np.hstack(y_rand)
+
+    x_rand = tf.convert_to_tensor(x_rand, dtype=tf.float32)
+    y_rand = tf.convert_to_tensor(y_rand, dtype=tf.float32)
+    x_traj = tf.convert_to_tensor(x_traj, dtype=tf.float32)
+    y_traj = tf.convert_to_tensor(y_traj, dtype=tf.float32)
+    loss = pretrain_mrcl(x_traj, y_traj, x_rand, y_rand)
+    
+    # Check metrics
+    rep = rln(x_rand)
+    rep = np.array(rep)
+    counts = np.count_nonzero(rep, axis=1) / rep.shape[1]
+    t.set_description(f"Non sparsity: {np.mean(counts)}\tTraining loss: {loss}")
