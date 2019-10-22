@@ -9,6 +9,7 @@ def resize(image):
     Resize an image to 84x84
     """
     image['image'] = tf.image.resize(image['image'], size=(84, 84))
+    image['image'] = image['image'][:, :, 0]
     return image
 
 
