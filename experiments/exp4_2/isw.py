@@ -15,7 +15,7 @@ def mrcl_isw_rln(inputs, n_layers=6, hidden_units_per_layer=300):
     """
     h = inputs
     for i in range(n_layers):
-        h = tf.keras.layers.Dense(hidden_units_per_layer, activation='relu')(h)
+        h = tf.keras.layers.Dense(hidden_units_per_layer, activation='relu', kernel_initializer="he_normal")(h)
     return h
 
 
@@ -33,8 +33,8 @@ def mrcl_isw_tln(inputs, n_layers=2, hidden_units_per_layer=300):
     """
     y = inputs
     for i in range(n_layers):
-        y = tf.keras.layers.Dense(hidden_units_per_layer, activation='relu')(y)
-    y = tf.keras.layers.Dense(1)(y)
+        y = tf.keras.layers.Dense(hidden_units_per_layer, activation='relu', kernel_initializer="he_normal")(y)
+    y = tf.keras.layers.Dense(1, kernel_initializer="he_normal")(y)
     return y
 
 

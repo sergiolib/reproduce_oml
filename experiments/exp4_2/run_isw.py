@@ -90,7 +90,7 @@ for epoch in tqdm.trange(parameters["epochs"]):
         rep = rln(x)
         rep = [tf.reshape(r, (30, 10, 1)) for r in rep]
         rep = [r / tf.reduce_max(r) for r in rep]
-        rep = tf.stack(rep)
+        rep = tf.random.shuffle(tf.stack(rep))
         with train_summary_writer.as_default():
             tf.summary.image("representation", rep, epoch)
 
