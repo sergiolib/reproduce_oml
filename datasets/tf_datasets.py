@@ -2,6 +2,7 @@
 
 import tensorflow as tf
 import tensorflow_datasets as tfds
+import numpy as np
 
 
 def resize(image):
@@ -10,6 +11,7 @@ def resize(image):
     """
     image['image'] = tf.image.resize(image['image'], size=(84, 84))
     image['image'] = image['image'][:, :, 0]
+    image['image'] = tf.expand_dims(image['image'], axis=-1)
     return image
 
 
