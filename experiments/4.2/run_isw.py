@@ -3,8 +3,9 @@ import sys
 sys.path.append("../../datasets")
 sys.path.append("../")
 from synth_datasets import gen_sine_data, partition_sine_data
-from training import split_data_in_2, mrcl_pretrain, mrcl_evaluate
+from training import split_data_in_2, mrcl_pretrain, mrcl_evaluate, basic_pt_train,  basic_pt_eval
 from isw import mrcl_isw
+from basic_pt import basic_pt_isw
 import numpy as np
 
 
@@ -73,21 +74,95 @@ def do_one_hot(input_data):
     return input_data
 
 
-# for rs in range(1000):
-# Sample 10 functions from the 400
-f_inds = np.random.permutation(range(400))[:20]
-f_inds_tr = f_inds[:10]
-f_inds_ev = f_inds[10:]
-train_data = concat_dicts([data_with_k_equals(pretraining, k) for k in f_inds_tr])
-reassign_k_values(train_data, f_inds_tr)
-train_data = do_one_hot(train_data)
-train_data = join_z_and_k(train_data)
-s_learn, s_remember = split_data_in_2(train_data, 0.8)
-mrcl_pretrain((s_learn["x"], s_learn["y"]), (s_remember["x"], s_remember["y"]), rln, tln, regression_parameters)
-eval_data = concat_dicts([data_with_k_equals(pretraining, k) for k in f_inds_ev])
-reassign_k_values(eval_data, f_inds_ev)
-eval_data = do_one_hot(eval_data)
-eval_data = join_z_and_k(eval_data)
-results = mrcl_evaluate(eval_data, rln, tln, regression_parameters)
-np.savetxt("eval_results.txt", results)
-np.savetxt("ground_truth.txt", np.array(eval_data["y"]))
+def prepare_train_data(with_split=True):
+    # for rs in range(1000):
+    # Sample 10 functions from the 400
+    f_inds = np.random.permutation(range(400))[:20]
+    f_inds_tr = f_inds[:10]
+    f_inds_ev = f_inds[10:]
+    train_data = concat_dicts([data_with_k_equals(pretraining, k) for k in f_inds_tr])
+    reassign_k_values(train_data, f_inds_tr)
+    train_data = do_one_hot(train_data)
+    train_data = join_z_and_k(train_data)
+    if with_split:
+        s_learn, s_remember = split_data_in_2(train_data, 0.8)
+        return f_inds_ev, s_learn, s_remember
+    else:
+        return f_inds_ev, train_data
+
+def prepare_eval_data(f_inds_ev):
+    eval_data = concat_dicts([data_with_k_equals(pretraining, k) for k in f_inds_ev])
+    reassign_k_values(eval_data, f_inds_ev)
+    eval_data = do_one_hot(eval_data)
+    eval_data = join_z_and_k(eval_data)
+    return eval_data
+
+def run_mrcl():
+    f_inds_ev, s_learn, s_remember = prepare_train_data()
+    mrcl_pretrain((s_learn["x"], s_learn["y"]), (s_remember["x"], s_remember["y"]), rln, tln, regression_parameters)
+
+    eval_data = prepare_eval_data(f_inds_ev)
+    results = mrcl_evaluate(eval_data, rln, tln, regression_parameters)
+
+    np.savetxt("eval_results.txt", results)
+    np.savetxt("ground_truth.txt", np.array(eval_data["y"]))
+
+
+def run_scratch():
+    """
+    Learn MRCL online without any pre-training
+
+    TODO: Does from scratch mean when online training, update the whole network or just as MRCL, update only TLN?
+
+    """
+    f_inds_ev, _, _ = prepare_train_data()
+    eval_data = prepare_eval_data(f_inds_ev)
+
+    # make sure network starts with a random initialization
+    results = mrcl_evaluate(eval_data, rln, tln, regression_parameters)
+    np.savetxt("scratch_eval_results.txt", results)
+    np.savetxt("scratch_ground_truth.txt", np.array(eval_data["y"]))
+
+
+def run_basic_pt():
+    """
+    Use a very simple pre-training procedure of just training a single NN with Gradient Descent
+    """
+
+    params = {
+        "learning_rate": 1e-3,
+        "loss_metric": tf.losses.MSE,
+        "total_gradient_updates": 40,
+        "inner_steps": 400,  # k
+        "optimizer": tf.compat.v1.train.GradientDescentOptimizer,
+        "random_batch_size": 8  # len(X_rand)
+    }
+
+    n_layers = 8
+
+    f_inds_ev, train_data = prepare_train_data(with_split=False)
+
+    basic_model = basic_pt_isw(n_layers=n_layers)
+
+    basic_pt_train(params, train_data, basic_model)
+
+    eval_data = prepare_eval_data(f_inds_ev)
+
+    # Approach no.1: Create and pretrain one model and then make different versions by splitting it in the evaluation
+    # Approach no.2: Create and pretrain different models of RLN & TLN so you dont have to worry about different splits
+
+    # Validation in order to find the best split
+    # First layer is always fixed, last layer is always trainable
+    # First freeze the first layer, then the first and second layer etc
+    for i in range(1, n_layers - 2):
+        results = basic_pt_eval(eval_data, basic_model, params, layers_to_freeze=i)
+        np.savetxt(f"basic_pt_{i}_eval_results.txt", results)
+
+    np.savetxt("ground_truth.txt", np.array(eval_data["y"]))
+
+
+def run_srnn():
+    pass
+
+
+run_basic_pt()
