@@ -4,6 +4,7 @@ sys.path.append("")
 import tqdm
 import tensorflow as tf
 import numpy as np
+from util.plotter import visualize
 
 
 def split_data_in_2(data_dict, proportion=0.9):
@@ -54,7 +55,7 @@ def random_sample(data_list, batch_size):
     return tuple(results)
 
 
-def mrcl_pretrain(s_learn, s_remember, rln, tln, params):
+def mrcl_pretrain(s_learn, s_remember, rln, tln, params, vis_omni_rep=False):
     # Create auxiliary model
     tln_inner = tf.keras.models.clone_model(tln)  # For inner calculations
     
@@ -119,6 +120,12 @@ def mrcl_pretrain(s_learn, s_remember, rln, tln, params):
         os.makedirs("save_models")
     rln.save(f"saved_models/rln_final.tf", save_format="tf")
     tln.save(f"saved_models/tln_final.tf", save_format="tf")
+
+    if vis_omni_rep:
+        last_layer = rln.get_layer("Last", -1)
+        representation = last_layer.get_weights()[0]
+        visualize(representation)
+
 
 
 def mrcl_evaluate(data, rln, tln, params):
