@@ -1,6 +1,5 @@
 import datetime
 from os import makedirs
-from random import sample
 from shutil import rmtree
 import tensorflow as tf
 import tqdm
@@ -19,7 +18,7 @@ parameters = {
     "sample_length": 32,  # length of each sequence sampled
     "repetitions": 40,  # number of repetitions for generating the data samples
     "save_models_every": 100,  # Amount of epochs to pass before saving models
-    "post_results_every": 5  # Amount of epochs to pass before posting results in Tensorboard
+    "post_results_every": 50  # Amount of epochs to pass before posting results in Tensorboard
 }
 
 rln, tln = mrcl_isw(one_hot_depth=parameters["n_functions"])  # Create and initialize models
