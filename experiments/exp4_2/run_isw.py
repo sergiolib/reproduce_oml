@@ -16,6 +16,7 @@ parameters = {
     "epochs": 20000,  # number of epochs to pre train for
     "n_tasks": 400,  # number of tasks to pre train from
     "n_functions": 10,  # number of functions to sample per epoch
+    "sample_length": 32,  # length of each sequence sampled
     "repetitions": 40  # number of
 }
 
@@ -64,7 +65,9 @@ for epoch in tqdm.trange(parameters["epochs"]):
     loss = pretrain_mrcl(x_traj=x_traj, y_traj=y_traj,
                          x_rand=x_rand, y_rand=y_rand,
                          rln=rln, tln=tln, tln_initial=tln_initial,
-                         meta_optimizer=meta_optimizer)
+                         meta_optimizer=meta_optimizer,
+                         loss_function=loss_fun,
+                         beta=parameters["inner_learning_rate"])
 
     # Check metrics
     rep = rln(x_rand)
