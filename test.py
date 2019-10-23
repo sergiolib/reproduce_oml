@@ -1,4 +1,4 @@
-from datasets.tf_datasets import load_data
+from datasets.tf_datasets import load_omniglot
 
 
 dataset = "omniglot"
@@ -6,7 +6,7 @@ dataset = "omniglot"
 
 def main():
 
-    train_data, test_data = load_data(dataset, transform=False, verbose=1)
+    train_data, test_data = load_omniglot(dataset, verbose=1)
 
     # More info on how to use tf.Dataset here: https://www.tensorflow.org/guide/data
     # use .take(x) if you want to iterate over specific number of samples
