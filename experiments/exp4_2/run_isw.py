@@ -17,7 +17,9 @@ parameters = {
     "n_tasks": 400,  # number of tasks to pre train from
     "n_functions": 10,  # number of functions to sample per epoch
     "sample_length": 32,  # length of each sequence sampled
-    "repetitions": 40  # number of
+    "repetitions": 40,  # number of repetitions for generating the data samples
+    "save_models_every": 100,  # Amount of epochs to pass before saving models
+    "post_results_every": 5  # Amount of epochs to pass before posting results in Tensorboard
 }
 
 rln, tln = mrcl_isw(one_hot_depth=parameters["n_functions"])  # Create and initialize models
@@ -45,6 +47,7 @@ tln_initial = tf.keras.models.clone_model(tln)
 
 # Main pre training loop
 for epoch in tqdm.trange(parameters["epochs"]):
+    # Sample data
     x_traj, y_traj, x_rand, y_rand = gen_sine_data(tasks=tasks, n_functions=parameters["n_functions"],
                                                    sample_length=parameters["sample_length"],
                                                    repetitions=parameters["repetitions"])
@@ -69,23 +72,28 @@ for epoch in tqdm.trange(parameters["epochs"]):
                          loss_function=loss_fun,
                          beta=parameters["inner_learning_rate"])
 
-    # Check metrics
-    rep = rln(x_rand)
-    rep = np.array(rep)
-    counts = np.isclose(rep, 0).sum(axis=1) / rep.shape[1]
-    sparsity = np.mean(counts)
-    with train_summary_writer.as_default():
-        tf.summary.scalar('Sparsity', sparsity, step=epoch)
-        tf.summary.scalar('Training loss', loss, step=epoch)
+    # Check metrics for Tensorboard to be included every "post_results_every" epochs
+    if epoch % parameters["post_results_every"] == 0:
+        rep = rln(x_rand)
+        rep = np.array(rep)
+        counts = np.isclose(rep, 0).sum(axis=1) / rep.shape[1]
+        sparsity = np.mean(counts)
+        with train_summary_writer.as_default():
+            tf.summary.scalar('Sparsity', sparsity, step=epoch)
+            tf.summary.scalar('Training loss', loss, step=epoch)
 
-    if epoch % 100 == 0 and epoch > 0:
-        save_models(epoch)
+    # Save model every "save_models_every" epochs
+    if epoch % parameters["save_models_every"] == 0 and epoch > 0:
+        save_models(epoch, rln=rln, tln=tln)
 
-    if epoch % 100 == 0:
-        ix = sample(range(x_rand.shape[0]), 1)
-        x = tf.reshape(x_rand[ix], (1, -1))
+    if epoch % parameters["post_results_every"] == 0:
+        x = x_rand
         rep = rln(x)
-        rep = tf.reshape(rep[0], (30, 10))
-        rep = rep / tf.reduce_max(rep)
-        rep = tf.reshape(rep, (1, 30, 10, 1))
-        tf.summary.image("representation", rep, epoch)
+        rep = [tf.reshape(r, (30, 10, 1)) for r in rep]
+        rep = [r / tf.reduce_max(r) for r in rep]
+        rep = tf.stack(rep)
+        with train_summary_writer.as_default():
+            tf.summary.image("representation", rep, epoch)
+
+# Save final model
+save_models("final", rln=rln, tln=tln)
