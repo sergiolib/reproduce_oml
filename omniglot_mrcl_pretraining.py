@@ -34,7 +34,7 @@ classification_parameters = {
     "meta_optimizer": tf.optimizers.Adam
 }
 
-t = range(20000)
+t = range(2000)
 tasks = None
 
 current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
