@@ -75,6 +75,16 @@ def sample_random(s_remember, data):
         y_rand.append(item['label'])
     return tf.convert_to_tensor(x_rand), tf.convert_to_tensor(y_rand)
 
+def sample_random_10_classes(s_remember, data):
+    random_classes = np.random.choice(s_remember, 10)
+    x_rand = []
+    y_rand = []
+    for random_class in random_classes:
+        random_index = np.random.choice(list(range(20)))
+        x_rand.append(data[random_class][random_index]['image'])
+        y_rand.append(data[random_class][random_index]['label'])
+    return tf.convert_to_tensor(x_rand), tf.convert_to_tensor(y_rand)
+
 
 def pretrain_classification_mrcl(x_traj, y_traj, x_rand, y_rand, rln, tln, classification_parameters):
     # Random reinitialization of last layer

@@ -2,7 +2,7 @@ import tensorflow as tf
 import datetime
 import numpy as np
 from experiments.exp4_2.omniglot_model import mrcl_omniglot, get_data_by_classes, \
-    partition_into_disjoint, pretrain_classification_mrcl, sample_trajectory, sample_random
+    partition_into_disjoint, pretrain_classification_mrcl, sample_trajectory, sample_random, sample_random_10_classes
 from datasets.tf_datasets import load_omniglot
 from experiments.training import save_models
 
@@ -42,7 +42,7 @@ train_log_dir = 'logs/classification/gradient_tape/' + current_time + '/train'
 train_summary_writer = tf.summary.create_file_writer(train_log_dir)
 
 for epoch, v in enumerate(t):
-    x_rand, y_rand = sample_random(s_remember, background_training_data)
+    x_rand, y_rand = sample_random_10_classes(s_remember, background_training_data)
     x_traj, y_traj = sample_trajectory(s_learn, background_training_data)
     loss = pretrain_classification_mrcl(x_traj, y_traj, x_rand, y_rand, rln, tln, classification_parameters)
 
