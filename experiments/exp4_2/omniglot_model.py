@@ -98,7 +98,7 @@ def pretrain_classification_mrcl(x_traj, y_traj, x_rand, y_rand, rln, tln, class
     rln_gradients = theta_tape.gradient(outer_loss, rln.trainable_variables)
     del theta_tape
 
-    classification_parameters["meta_optmizer"](
+    classification_parameters["meta_optimizer"](
         learning_rate=classification_parameters["meta_learning_rate"]).apply_gradients(
         zip(tln_gradients + rln_gradients, tln_initial.trainable_variables + rln.trainable_variables))
 
