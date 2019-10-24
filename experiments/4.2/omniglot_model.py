@@ -1,10 +1,9 @@
 import tensorflow as tf
 
-
 def mrcl_omniglot_rln(inputs, n_layers=6, filters=256, strides=[2,1,2,1,2,2]):
     h = inputs
     for i in range(n_layers):
-        h = tf.keras.layers.Conv2D(filters, (3, 3), activation='relu', input_shape=(84, 84, 3), strides=strides[i])(h)
+        h = tf.keras.layers.Conv2D(filters, (3, 3), activation='relu', input_shape=(84, 84, 1), strides=strides[i])(h)
     h = tf.keras.layers.Flatten()(h)
     return h
 
@@ -17,8 +16,8 @@ def mrcl_omniglot_tln(inputs, n_layers=2, hidden_units_per_layer=300, output=964
     return y
 
 
-def mrcl_omniglot(n_layers_rln=6, n_layers_tln=2):
-    input_rln = tf.keras.Input(shape=(84, 84, 3))
+def mrcl_omniglot():
+    input_rln = tf.keras.Input(shape=(84, 84, 1))
     input_tln = tf.keras.Input(shape=3*3*256)
     h = mrcl_omniglot_rln(input_rln)
     rln = tf.keras.Model(inputs=input_rln, outputs=h)
