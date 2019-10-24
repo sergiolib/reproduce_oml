@@ -4,6 +4,7 @@ sys.path.append("")
 import tqdm
 import tensorflow as tf
 import numpy as np
+from util.plotter import visualize
 
 
 def split_data_in_2(data_dict, proportion=0.9):
@@ -55,20 +56,10 @@ def random_sample(data_list, batch_size):
     return tuple(results)
 
 
-def sample_trajectory_wrap(data, start, size):
-    x_len = len(data[0])
-    space_left_forward = x_len - start
-
-    x_traj, y_traj = sample_trajectory(data, start,
-                                       min(space_left_forward, size))
-    if space_left_forward < size:
-        x_traj_2, y_traj_2 = sample_trajectory(data, 0, size - space_left_forward)
-        x_traj = tf.concat([x_traj, x_traj_2], axis=0)
-        y_traj = tf.concat([y_traj, y_traj_2], axis=0)
-    return x_traj, y_traj
-
-
-def mrcl_pretrain(s_learn, s_remember, rln, tln, params):
+def mrcl_pretrain(s_learn, s_remember, rln, tln, params, vis_omni_rep=False):
+    # Create auxiliary model
+    tln_inner = tf.keras.models.clone_model(tln)  # For inner calculations
+    
     # Main loop
     trange = tqdm.tqdm(range(params["total_gradient_updates"]))
     # Initialize optimizer
@@ -124,6 +115,12 @@ def mrcl_pretrain(s_learn, s_remember, rln, tln, params):
         os.makedirs("save_models")
     rln.save(f"saved_models/rln_final.tf", save_format="tf")
     tln.save(f"saved_models/tln_final.tf", save_format="tf")
+
+    if vis_omni_rep:
+        last_layer = rln.get_layer("Last", -1)
+        representation = last_layer.get_weights()[0]
+        visualize(representation)
+
 
 
 def mrcl_evaluate(data, rln, tln, params):
