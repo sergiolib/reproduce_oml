@@ -97,7 +97,7 @@ def inner_update(x, y):
         v.assign_sub(classification_parameters["inner_learning_rate"] * g)
     
 
-#@tf.function
+@tf.function
 def compute_loss(x, y):
     if (x.shape.ndims == 3):
         output = tln(rln(tf.expand_dims(x, axis=0)))
