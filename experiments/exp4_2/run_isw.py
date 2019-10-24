@@ -133,4 +133,4 @@ else:
                                  loss_function=loss_fun, batch_size=parameters["batch_size_evaluation"])
 
 
-json.dump(results, open("evaluation_results.csv"))
+json.dump(results, open("evaluation_results.json", "w"))
