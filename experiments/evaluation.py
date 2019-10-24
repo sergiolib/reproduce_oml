@@ -27,13 +27,15 @@ def train_and_evaluate(x_train, y_train, x_test, y_test, rln, tln, optimizer, lo
         optimizer.apply_gradients(zip(gradient_tln, tln.trainable_variables))
 
         final_ind = data_in_test_seen(data_seen, x_train_f, x_test)
-        x_test_seen_classes = x_test[:final_ind]
+        x_test_classes_seen = x_test[:final_ind]
         y_test_seen_classes = y_test[:final_ind]
 
-        results[data_seen] = {"loss": compute_loss(x_test_seen_classes, y_test_seen_classes, loss_function, rln, tln),
+        output_loss = compute_loss(x_test_classes_seen, y_test_seen_classes, loss_function, rln, tln)
+
+        results[data_seen] = {"loss": np.asscalar(np.array(output_loss)),
                               "tested_data_points": final_ind,
                               "data_points_trained_with": data_seen,
-                              "number_of_classes_seen": len(np.unique(np.argmax(x_test_seen_classes[:, 1:], axis=1)))}
+                              "number_of_classes_seen": len(np.unique(np.argmax(x_test_classes_seen[:, 1:], axis=1)))}
 
     return results
 
