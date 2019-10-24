@@ -92,7 +92,7 @@ def pretrain_classification_mrcl(x_traj, y_traj, x_rand, y_rand, rln, tln, class
         inner_update(x, y, rln, tln, classification_parameters)
 
     with tf.GradientTape(persistent=True) as theta_tape:
-        outer_loss = compute_loss(x_meta, y_meta, rln, tln)
+        outer_loss = compute_loss(x_meta, y_meta, rln, tln, classification_parameters)
 
     tln_gradients = theta_tape.gradient(outer_loss, tln.trainable_variables)
     rln_gradients = theta_tape.gradient(outer_loss, rln.trainable_variables)
