@@ -55,6 +55,6 @@ for epoch, v in enumerate(t):
         tf.summary.scalar('Sparsity', sparsity, step=epoch)
         tf.summary.scalar('Training loss', loss, step=epoch)
     print("Epoch:", epoch, "Sparsity:", sparsity, "Training loss:", loss.numpy())
-    if epoch % 10 == 0:
-        save_models(tln, f"tln_pretraining_mrcl_{epoch}_omniglot.tf")
-        save_models(tln, f"rln_pretraining_mrcl_{epoch}_omniglot.tf")
+    if epoch % 100 == 0:
+        save_models(tln, f"tln_pretraining_mrcl_{epoch}_omniglot")
+        save_models(tln, f"rln_pretraining_mrcl_{epoch}_omniglot")
