@@ -1,9 +1,8 @@
 import tensorflow as tf
 import datetime
 import numpy as np
-from experiments.exp4_2.omniglot_experiments import get_data_by_classes, \
+from experiments.exp4_2.omniglot_model import mrcl_omniglot, get_data_by_classes, \
     partition_into_disjoint, pretrain_classification_mrcl, sample_trajectory, sample_random
-from experiments.exp4_2.omniglot_model import mrcl_omniglot
 from datasets.tf_datasets import load_omniglot
 from experiments.training import save_models
 
@@ -41,8 +40,6 @@ tasks = None
 current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 train_log_dir = 'logs/classification/gradient_tape/' + current_time + '/train'
 train_summary_writer = tf.summary.create_file_writer(train_log_dir)
-loss_function = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
-meta_optimizer_outer = tf.keras.optimizers.Adam(learning_rate=classification_parameters["meta_learning_rate"])
 
 for epoch, v in enumerate(t):
     x_rand, y_rand = sample_random(s_remember, background_training_data)
