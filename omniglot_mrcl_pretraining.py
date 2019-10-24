@@ -38,7 +38,7 @@ t = range(20000)
 tasks = None
 
 current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-train_log_dir = 'logs/classification/gradient_tape/' + current_time + '/train'
+train_log_dir = 'logs/classification/pretraining/omniglot/mrcl/gradient_tape/' + current_time + '/train'
 train_summary_writer = tf.summary.create_file_writer(train_log_dir)
 
 for epoch, v in enumerate(t):
