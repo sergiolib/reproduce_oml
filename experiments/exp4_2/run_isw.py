@@ -24,8 +24,8 @@ parameters = {
     "post_results_every": 50,  # Amount of epochs to pass before posting results in Tensorboard
     "pre_training": False,  # If True, pre train a new model
     "batch_size_evaluation": 8,  # Batch size for evaluation stage training
-    "model_file_rln": "/home/sliberman/Documents/src/mrcl/experiments/exp4_2/saved_models/rln_isw",
-    "model_file_tln": "/home/sliberman/Documents/src/mrcl/experiments/exp4_2/saved_models/tln_isw",
+    "model_file_rln": "saved_models/rln_isw",
+    "model_file_tln": "saved_models/tln_isw",
 }
 
 tasks = gen_tasks(parameters["n_functions"])  # Generate tasks parameters
@@ -131,5 +131,6 @@ else:
                                  x_rand=x_rand_test, y_rand=y_rand_test,
                                  rln=rln, tln=tln, optimizer=optimizer,
                                  loss_function=loss_fun, batch_size=parameters["batch_size_evaluation"])
+
 
 json.dump(results, open("evaluation_results.csv"))
