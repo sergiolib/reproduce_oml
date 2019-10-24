@@ -127,8 +127,8 @@ else:
     optimizer = tf.keras.optimizers.SGD(learning_rate=parameters["training_learning_rate"])
 
     # Continual Regression Experiment (Figure 3)
-    results = train_and_evaluate(x_traj=x_traj_test, y_traj=y_traj_test,
-                                 x_rand=x_rand_test, y_rand=y_rand_test,
+    results = train_and_evaluate(x_train=x_traj_test, y_train=y_traj_test,
+                                 x_test=x_rand_test, y_test=y_rand_test,
                                  rln=rln, tln=tln, optimizer=optimizer,
                                  loss_function=loss_fun, batch_size=parameters["batch_size_evaluation"])
 

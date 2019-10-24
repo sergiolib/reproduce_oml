@@ -7,11 +7,11 @@ def compute_loss(x, y, loss_function, rln, tln):
     return loss_function(y, tln(rln(x)))
 
 
-def train_and_evaluate(x_traj, y_traj, x_rand, y_rand, rln, tln, optimizer, loss_function, batch_size):
+def train_and_evaluate(x_train, y_train, x_test, y_test, rln, tln, optimizer, loss_function, batch_size):
     # Sample x_rand, y_rand from s_remember
-    x_shape = x_traj.shape
-    x_traj_f = tf.reshape(x_traj, (x_shape[0] * x_shape[1], x_shape[2]))
-    y_traj_f = tf.reshape(y_traj, (x_shape[0] * x_shape[1],))
+    x_shape = x_train.shape
+    x_traj_f = tf.reshape(x_train, (x_shape[0] * x_shape[1], x_shape[2]))
+    y_traj_f = tf.reshape(y_train, (x_shape[0] * x_shape[1],))
 
     data = tf.data.Dataset.from_tensor_slices((x_traj_f, y_traj_f)).shuffle(13000).batch(batch_size)
 
@@ -26,9 +26,9 @@ def train_and_evaluate(x_traj, y_traj, x_rand, y_rand, rln, tln, optimizer, loss
         gradient_tln = tape.gradient(loss, tln.trainable_variables)
         optimizer.apply_gradients(zip(gradient_tln, tln.trainable_variables))
 
-        final_ind = data_in_meta_seen(data_seen, x_traj_f, x_rand)
-        x_rand_seen_classes = x_rand[:final_ind]
-        y_rand_seen_classes = y_rand[:final_ind]
+        final_ind = data_in_meta_seen(data_seen, x_traj_f, x_test)
+        x_rand_seen_classes = x_test[:final_ind]
+        y_rand_seen_classes = y_test[:final_ind]
 
         results[data_seen] = {"loss": compute_loss(x_rand_seen_classes, y_rand_seen_classes, loss_function, rln, tln),
                               "tested_data_points": final_ind,
