@@ -116,7 +116,7 @@ def pretrain_classification_mrcl(x_traj, y_traj, x_rand, y_rand, rln, tln, class
     return outer_loss
 
 
-@tf.function
+#@tf.function
 def inner_update(x, y, rln, tln, classification_parameters):
     with tf.GradientTape(watch_accessed_variables=False) as Wj_Tape:
         Wj_Tape.watch(tln.trainable_variables)
@@ -126,7 +126,7 @@ def inner_update(x, y, rln, tln, classification_parameters):
         v.assign_sub(classification_parameters["inner_learning_rate"] * g)
 
 
-@tf.function
+#@tf.function
 def compute_loss(x, y, rln, tln, classification_parameters):
     if x.shape.ndims == 3:
         output = tln(rln(tf.expand_dims(x, axis=0)))
@@ -134,3 +134,50 @@ def compute_loss(x, y, rln, tln, classification_parameters):
         output = tln(rln(x))
     loss = classification_parameters["loss_function"](y, output)
     return loss, output
+
+
+def evaluate_classification_mrcl(training_data, testing_data, rln, tln, classification_parameters):
+    all_classes = list(range(len(training_data)))
+    classes_to_use = np.random.choice(all_classes, 200)
+    seen_classes = 0
+
+    x_training = []
+    y_training = []
+    x_testing = []
+    y_testing = []
+    temp_class_id = 0
+    for class_id in classes_to_use:
+        for training_item in training_data[class_id]:
+            x_training.append(training_item['image'])
+            y_training.append(temp_class_id)
+        for testing_item in testing_data[class_id]:
+            x_testing.append(testing_item['image'])
+            y_testing.append(temp_class_id)
+        temp_class_id = temp_class_id + 1
+
+    x_training = tf.convert_to_tensor(x_training)
+    y_training = tf.convert_to_tensor(y_training)
+    x_testing = tf.convert_to_tensor(x_testing)
+    y_testing = tf.convert_to_tensor(y_testing)
+    results = []
+
+    test_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='test_accuracy')
+    print(f"Start training with lr: {classification_parameters['online_learning_rate']}")
+    for class_id in range(200):
+        seen_classes = seen_classes + 1
+        with tf.GradientTape() as tape:
+            loss, _ = compute_loss(x_training[(seen_classes - 1) * 15:seen_classes * 15],
+                                   y_training[(seen_classes - 1) * 15:seen_classes * 15], rln, tln,
+                                   classification_parameters)
+        gradient_tln = tape.gradient(loss, tln.trainable_variables)
+        classification_parameters['online_optimizer'](
+            learning_rate=classification_parameters['online_learning_rate']).apply_gradients(
+            zip(gradient_tln, tln.trainable_variables))
+
+        x_testing_all = x_testing[:seen_classes * 5]
+        y_testing_all = y_testing[:seen_classes * 5]
+        loss, output = compute_loss(x_testing_all, y_testing_all, rln, tln, classification_parameters)
+        test_accuracy(y_testing_all, output)
+        results.append({"loss": loss, "number_of_classes_seen": seen_classes})
+        print(f"Class {class_id}, loss {loss}, accuracy {test_accuracy.result()}")
+    return results

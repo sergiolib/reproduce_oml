@@ -41,7 +41,7 @@ current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 train_log_dir = 'logs/classification/pretraining/omniglot/mrcl/gradient_tape/' + current_time + '/train'
 train_summary_writer = tf.summary.create_file_writer(train_log_dir)
 
-for epoch, v in enumerate(t):
+for epoch, v in enumerate(t):compute_loss
     x_rand, y_rand = sample_random_10_classes(s_remember, background_training_data)
     x_traj, y_traj = sample_trajectory(s_learn, background_training_data)
     loss = pretrain_classification_mrcl(x_traj, y_traj, x_rand, y_rand, rln, tln, classification_parameters)
@@ -57,4 +57,4 @@ for epoch, v in enumerate(t):
     print("Epoch:", epoch, "Sparsity:", sparsity, "Training loss:", loss.numpy())
     if epoch % 100 == 0:
         save_models(tln, f"tln_pretraining_mrcl_{epoch}_omniglot")
-        save_models(tln, f"rln_pretraining_mrcl_{epoch}_omniglot")
+        save_models(rln, f"rln_pretraining_mrcl_{epoch}_omniglot")
