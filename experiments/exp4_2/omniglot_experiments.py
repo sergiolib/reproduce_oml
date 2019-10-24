@@ -1,23 +1,22 @@
-import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), "../../datasets"))
-sys.path.append(os.path.join(os.path.dirname(__file__), "../"))
+from operator import itemgetter
 
-from tf_datasets import load_omniglot
 import tensorflow_datasets as tfds
 import tensorflow as tf
 import numpy as np
-from omniglot_model import mrcl_omniglot 
-from training import copy_parameters 
-from operator import itemgetter
 import datetime
 import os
+
+from datasets.tf_datasets import load_omniglot
+from experiments.exp4_2.omniglot_model import mrcl_omniglot
+from experiments.training import copy_parameters
+
 
 print(f"GPU is available: {tf.test.is_gpu_available()}")
 
 dataset = "omniglot"
 
 background_data, evaluation_data = load_omniglot(dataset, verbose=1)
+
 
 def get_data_by_classes(background_data, evaluation_data):
     background_data = np.array(sorted(list(tfds.as_numpy(background_data)), key=itemgetter('label')))
@@ -36,11 +35,13 @@ def get_data_by_classes(background_data, evaluation_data):
         background_training_data.append(background_data[i*20:(i+1)*20])
     return background_training_data, evaluation_training_data, evaluation_test_data
 
+
 def partition_into_disjoint(data):
     number_of_classes = len(data)
     s_learn = list(range(0, int(number_of_classes/2)))
     s_remember = list(range(int(number_of_classes/2), number_of_classes))
     return s_learn, s_remember
+
 
 def sample_trajectory(s_learn, data):
     random_class = np.random.choice(s_learn)
@@ -51,6 +52,7 @@ def sample_trajectory(s_learn, data):
         y_traj.append(item['label'])
     return tf.convert_to_tensor(x_traj), tf.convert_to_tensor(y_traj)
 
+
 def sample_random(s_remember, data):
     random_class = np.random.choice(s_remember)
     x_rand = []
@@ -59,6 +61,7 @@ def sample_random(s_remember, data):
         x_rand.append(item['image'])
         y_rand.append(item['label'])
     return tf.convert_to_tensor(x_rand), tf.convert_to_tensor(y_rand)
+
 
 def pretrain_classification_mrcl(x_traj, y_traj, x_rand, y_rand):
     # Random reinitialization of last layer
@@ -87,6 +90,7 @@ def pretrain_classification_mrcl(x_traj, y_traj, x_rand, y_rand):
 
     return outer_loss
 
+
 @tf.function
 def inner_update(x, y):
     with tf.GradientTape(watch_accessed_variables=False) as Wj_Tape:
@@ -99,12 +103,13 @@ def inner_update(x, y):
 
 @tf.function
 def compute_loss(x, y):
-    if (x.shape.ndims == 3):
+    if x.shape.ndims == 3:
         output = tln(rln(tf.expand_dims(x, axis=0)))
     else:
         output = tln(rln(x))
     loss = loss_fun(y, output)
     return loss
+
 
 def save_models(rs):
     try:
@@ -114,6 +119,7 @@ def save_models(rs):
         os.makedirs(os.path.join(os.path.dirname(__file__), "saved_models"))
     rln.save(os.path.join(os.path.dirname(__file__), f"saved_models/rln_pretraining_{rs}.h5"))
     tln.save(os.path.join(os.path.dirname(__file__), f"saved_models/tln_pretraining_{rs}.h5"))
+
 
 background_training_data, evaluation_training_data, evaluation_test_data = get_data_by_classes(background_data, evaluation_data)
 
