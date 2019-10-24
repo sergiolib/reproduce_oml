@@ -102,7 +102,7 @@ def pretrain_classification_mrcl(x_traj, y_traj, x_rand, y_rand, rln, tln, class
         inner_update(x, y, rln, tln, classification_parameters)
 
     with tf.GradientTape(persistent=True) as theta_tape:
-        outer_loss = compute_loss(x_meta, y_meta, rln, tln, classification_parameters)
+        outer_loss, _ = compute_loss(x_meta, y_meta, rln, tln, classification_parameters)
 
     tln_gradients = theta_tape.gradient(outer_loss, tln.trainable_variables)
     rln_gradients = theta_tape.gradient(outer_loss, rln.trainable_variables)
@@ -120,7 +120,7 @@ def pretrain_classification_mrcl(x_traj, y_traj, x_rand, y_rand, rln, tln, class
 def inner_update(x, y, rln, tln, classification_parameters):
     with tf.GradientTape(watch_accessed_variables=False) as Wj_Tape:
         Wj_Tape.watch(tln.trainable_variables)
-        inner_loss = compute_loss(x, y, rln, tln, classification_parameters)
+        inner_loss, _ = compute_loss(x, y, rln, tln, classification_parameters)
     gradients = Wj_Tape.gradient(inner_loss, tln.trainable_variables)
     for g, v in zip(gradients, tln.trainable_variables):
         v.assign_sub(classification_parameters["inner_learning_rate"] * g)
@@ -133,4 +133,4 @@ def compute_loss(x, y, rln, tln, classification_parameters):
     else:
         output = tln(rln(x))
     loss = classification_parameters["loss_function"](y, output)
-    return loss
+    return loss, output
