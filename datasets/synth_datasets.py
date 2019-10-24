@@ -1,6 +1,6 @@
-""" Loader file for synthetic datasets"""
+""" Loader file for synthetic data sets"""
 
-import numpy as np
+from numpy import random as np_random, zeros, sin as np_sin
 from math import pi
 from random import sample
 
@@ -13,71 +13,58 @@ z_min = -5
 z_max = 5
 
 
-def gen_sine_data(n_id=10, n_samples=320):
+def gen_tasks(number_of_tasks):
     """
-    Generate synthetic Incremental Sine Waves as defined in section 4.1
-    :param n_id: number of functions to use (default is 10 as defined in the paper)
-    :param n_samples: number of samples per function (default is 320 as defined in the paper)
-    :return:
-    """
-    # Define how many sine functions to generate
-    indices = sample(range(n_id), n_id)  # IDs in random order, use = [range(n_id)] to sort them
-
-    # Sample amplitude for each function
-    amplitude = np.random.uniform(amp_min, amp_max, n_id)
-    # Sample phase for each function
-    phase = np.random.uniform(phase_min, phase_max, n_id)
-    # Sample z used as inputs of the sine functions
-    list_of_z = np.random.uniform(z_min, z_max, size=(n_samples, n_id))
-
-    # Initialize a 1D array of samples x functions. The samples of each function are concatenated in sequence
-    y = np.zeros(shape=(n_samples * n_id))
-    
-    # Initialize a 1D array of samples x functions for z and k values as well
-    z = np.zeros(shape=(n_samples * n_id))
-    k = np.zeros(shape=(n_samples * n_id), dtype=int)
-
-    # For every function sample n_samples and add them to the correct indices
-    for i in indices:
-        start = i * n_samples
-        end = start + n_samples
-        y[start:end] = np.sin(list_of_z[:, i] + phase[i]) * amplitude[i]
-        z[start:end] = list_of_z[:, i]
-        k[start:end] = i
-
-    return z, k, y
-
-def partition_sine_data(sine_data, pretraining_n_seq=400, evaluation_n_seq=500, seq_len=320):
-    """
-    Partition the incremental sine waves dataset
-    :param sine_data: Direct output of gen_sine_data
-    :type sine_data: (numpy.ndarray, numpy.ndarray, numpy.ndarray)
-    :param pretraining_n_seq: Number of sequences to include in pretraining set
-    :type pretraining_n_seq: int
-    :param evaluation_n_seq: Number of sequences to include in evaluation set
-    :type evaluation_n_seq: int
-    :param seq_len: Length of each sequence
-    :type seq_len: int
-    :return: Partitioned pretraining and evaluation sets
+    Generate tasks for the generation of sine waves
+    :param number_of_tasks: Number of tasks to generate
+    :type number_of_tasks: int
+    :return: amplitude and phase generated samples for each possible task
     :rtype: dict
     """
-    partitioned = {}
-    z, k, y = sine_data
-    if len(z) != len(k) or len(k) != len(y) or len(y) != (pretraining_n_seq + evaluation_n_seq) * seq_len:
-        raise AttributeError("Incorrent parameters")
-    border_index = pretraining_n_seq * seq_len
-    ptr_z = z[:border_index]
-    eval_z = z[border_index:]
-    ptr_k = k[:border_index]
-    eval_k = k[border_index:]
-    ptr_y = y[:border_index]
-    eval_y = y[border_index:]
-    pretraining = partitioned["pretraining"] = {}
-    evaluation = partitioned["evaluation"] = {}
-    pretraining["z"] = ptr_z
-    pretraining["k"] = ptr_k
-    pretraining["y"] = ptr_y
-    evaluation["z"] = eval_z
-    evaluation["k"] = eval_k
-    evaluation["y"] = eval_y
-    return partitioned
+    return {"amplitude": np_random.uniform(amp_min, amp_max, size=number_of_tasks),
+            "phase": np_random.uniform(phase_min, phase_max, size=number_of_tasks)}
+
+
+def gen_sine_data(tasks, n_functions=10, sample_length=32, repetitions=40):
+    """
+    Generate synthetic Incremental Sine Waves as defined in section 4.1
+    :param tasks: amplitude and phase generated samples for each possible task
+    :type tasks: dict
+    :param n_functions: number of functions to use (default is 10 as defined in the paper)
+    :type n_functions: int
+    :param sample_length: number of samples per function (default is 32 as defined in the paper)
+    :type sample_length: int
+    :param repetitions: number of repetitions of each task
+    :type repetitions: int
+    :return: x trajectory samples, y trajectory samples, x random samples, y random samples
+    :rtype numpy.ndarray (n_functions * repetitions x sample_length x dim),
+           numpy.ndarray (n_functions * repetitions x sample_length),
+           numpy.ndarray (n_functions x sample_length x dim),
+           numpy.ndarray (n_functions x sample_length)
+    """
+    tasks_subsample = sample(list(zip(tasks["amplitude"], tasks["phase"])), n_functions)  # tuples: (amp, phase)
+    amplitude = [task_parameters[0] for task_parameters in tasks_subsample]
+    phase = [s[1] for s in tasks_subsample]
+
+    # Sample z used as inputs of the sine functions
+    list_of_z_traj = np_random.uniform(z_min, z_max, size=(n_functions, repetitions, sample_length))
+    list_of_z_rand = np_random.uniform(z_min, z_max, size=(n_functions, sample_length))
+
+    # Initialize input arrays
+    x_traj = zeros(shape=(n_functions, repetitions, sample_length, n_functions + 1))
+    x_rand = zeros(shape=(n_functions, sample_length, n_functions + 1))
+    y_traj = zeros(shape=(n_functions, repetitions, sample_length))
+    y_rand = zeros(shape=(n_functions, sample_length))
+
+    # For every function, sample "repetitions" instances of length "sample_length"
+    for ind in range(n_functions):
+        for repetition in range(repetitions):
+            y_traj[ind, repetition, :] = np_sin(list_of_z_traj[ind, repetition] + phase[ind]) * amplitude[ind]
+            x_traj[ind, repetition, :, 0] = list_of_z_traj[ind, repetition]
+            x_traj[ind, repetition, :, 1 + ind] = 1
+
+        y_rand[ind, :] = np_sin(list_of_z_rand[ind, 0] + phase[ind]) * amplitude[ind]
+        x_rand[ind, :, 0] = list_of_z_rand[ind]
+        x_rand[ind, :, 1 + ind] = 1
+
+    return x_traj, y_traj, x_rand, y_rand

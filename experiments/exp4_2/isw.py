@@ -15,7 +15,7 @@ def mrcl_isw_rln(inputs, n_layers=6, hidden_units_per_layer=300):
     """
     h = inputs
     for i in range(n_layers):
-        h = tf.keras.layers.Dense(hidden_units_per_layer, activation='relu')(h)
+        h = tf.keras.layers.Dense(hidden_units_per_layer, activation='relu', kernel_initializer="he_normal")(h)
     return h
 
 
@@ -32,15 +32,15 @@ def mrcl_isw_tln(inputs, n_layers=2, hidden_units_per_layer=300):
     :rtype: tf.Tensor
     """
     y = inputs
-    for i in range(n_layers - 1):
-        y = tf.keras.layers.Dense(hidden_units_per_layer, activation='relu')(y)
-    y = tf.keras.layers.Dense(1)(y)
+    for i in range(n_layers):
+        y = tf.keras.layers.Dense(hidden_units_per_layer, activation='relu', kernel_initializer="he_normal")(y)
+    y = tf.keras.layers.Dense(1, kernel_initializer="he_normal")(y)
     return y
 
 
-def mrcl_isw(n_layers_rln=6, n_layers_tln=2, hidden_units_per_layer=300, one_hot_depth=400):
+def mrcl_isw(n_layers_rln=6, n_layers_tln=2, hidden_units_per_layer=300, one_hot_depth=10):
     """
-    Full MRCL model in section 4.2 of the paper. Predicts incremental sine waves.
+    Full MRCL model in section exp4_2 of the paper. Predicts incremental sine waves.
     :param n_layers_rln: Number of layers in the RLN
     :type n_layers_rln: int
     :param n_layers_tln: Number of layers in the TLN
