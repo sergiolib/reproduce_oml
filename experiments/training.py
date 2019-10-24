@@ -18,6 +18,14 @@ def save_models(epoch, rln, tln):
     tln.save(f"saved_models/tln_pretraining_{epoch}.tf", save_format="tf")
 
 
+def save_models(model, name):
+    try:
+        isdir("saved_models/")
+    except NotADirectoryError:
+        makedirs("saved_models/")
+    model.save(f"saved_models/{name}.tf", save_format="tf")
+
+
 @tf.function
 def inner_update(x, y, tln, rln, beta, loss_fun):
     with tf.GradientTape(watch_accessed_variables=False) as Wj_Tape:

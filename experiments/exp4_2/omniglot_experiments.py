@@ -4,12 +4,10 @@ import tensorflow_datasets as tfds
 import tensorflow as tf
 import numpy as np
 import datetime
-import os
 
 from datasets.tf_datasets import load_omniglot
 from experiments.exp4_2.omniglot_model import mrcl_omniglot
-from experiments.training import copy_parameters
-
+from experiments.training import copy_parameters, save_models
 
 print(f"GPU is available: {tf.test.is_gpu_available()}")
 
@@ -110,17 +108,6 @@ def compute_loss(x, y):
     loss = loss_fun(y, output)
     return loss
 
-
-def save_models(rs):
-    try:
-        os.path.isdir(os.path.join(os.path.dirname(__file__), "saved_models"))
-    except NotADirectoryError:
-        print("Creating a directory")
-        os.makedirs(os.path.join(os.path.dirname(__file__), "saved_models"))
-    rln.save(os.path.join(os.path.dirname(__file__), f"saved_models/rln_pretraining_{rs}.h5"))
-    tln.save(os.path.join(os.path.dirname(__file__), f"saved_models/tln_pretraining_{rs}.h5"))
-
-
 background_training_data, evaluation_training_data, evaluation_test_data = get_data_by_classes(background_data, evaluation_data)
 
 assert len(evaluation_training_data) == 659
@@ -169,3 +156,6 @@ for epoch, v in enumerate(t):
         tf.summary.scalar('Sparsity', sparsity, step=epoch)
         tf.summary.scalar('Training loss', loss, step=epoch)
     print("Epoch:", epoch, "Sparsity:", sparsity, "Training loss:", loss.numpy())
+    if epoch % 10 == 0:
+        save_models(tln, f"tln_pretraining_mrcl_{epoch}_omniglot.tf")
+        save_models(tln, f"rln_pretraining_mrcl_{epoch}_omniglot.tf")

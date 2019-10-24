@@ -16,11 +16,11 @@ def mrcl_omniglot_tln(inputs, n_layers=2, hidden_units_per_layer=300, output=964
     return y
 
 
-def mrcl_omniglot():
+def mrcl_omniglot(classes=964):
     input_rln = tf.keras.Input(shape=(84, 84, 1))
     input_tln = tf.keras.Input(shape=3*3*256)
     h = mrcl_omniglot_rln(input_rln)
     rln = tf.keras.Model(inputs=input_rln, outputs=h)
-    y = mrcl_omniglot_tln(input_tln)
+    y = mrcl_omniglot_tln(input_tln, output=classes)
     tln = tf.keras.Model(inputs=input_tln, outputs=y)
     return rln, tln
