@@ -164,7 +164,7 @@ def evaluate_classification_mrcl(training_data, testing_data, rln, tln, classifi
     test_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='test_accuracy')
     train_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='train_accuracy')
     print(f"Start training with lr: {classification_parameters['online_learning_rate']}")
-    for class_id in range(10):
+    for class_id in range(200):
         seen_classes = seen_classes + 1
         #for m in range((seen_classes - 1) * 15, seen_classes * 15):
         with tf.GradientTape() as tape:
