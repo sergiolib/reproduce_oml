@@ -162,6 +162,7 @@ def evaluate_classification_mrcl(training_data, testing_data, rln, tln, classifi
     results = []
 
     test_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='test_accuracy')
+    train_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='train_accuracy')
     print(f"Start training with lr: {classification_parameters['online_learning_rate']}")
     for class_id in range(200):
         seen_classes = seen_classes + 1
@@ -174,11 +175,25 @@ def evaluate_classification_mrcl(training_data, testing_data, rln, tln, classifi
             learning_rate=classification_parameters['online_learning_rate']).apply_gradients(
             zip(gradient_tln, tln.trainable_variables))
 
+        x_training_all = x_training[:seen_classes * 5]
+        y_training_all = y_training[:seen_classes * 5]
+
         x_testing_all = x_testing[:seen_classes * 5]
         y_testing_all = y_testing[:seen_classes * 5]
+
+        loss, output = compute_loss(x_training_all, y_training_all, rln, tln, classification_parameters)
+        train_accuracy(x_training_all, output)
+
         loss, output = compute_loss(x_testing_all, y_testing_all, rln, tln, classification_parameters)
         test_accuracy(y_testing_all, output)
-        results.append({"loss": str(loss.numpy()), "number_of_classes_seen": seen_classes, "accuracy": str(test_accuracy.result().numpy())})
+
+        results.append({"number_of_classes_seen": seen_classes,
+                        "test_accuracy": str(test_accuracy.result().numpy()),
+                        "train_accuracy": str(train_accuracy.result().numpy())})
+
+        train_accuracy.reset_states()
+        test_accuracy.reset_states()
+
         if (class_id+1) % 50 == 0:
             print(f"Class {class_id}, loss {loss}, accuracy {test_accuracy.result()}")
     return results
