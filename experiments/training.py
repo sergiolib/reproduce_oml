@@ -48,7 +48,7 @@ def pretrain_mrcl(x_traj, y_traj, x_rand, y_rand, tln, tln_initial, rln, meta_op
     w = tln.layers[-1].weights[0]
     b = tln.layers[-1].weights[1]
     new_w = tln.layers[-1].kernel_initializer(shape=w.shape)
-    new_b = tf.keras.initializers.zeros(shape=b.shape)
+    new_b = tf.keras.initializers.zeros()(shape=b.shape)
     w.assign(new_w)
     b.assign(new_b)
 
