@@ -179,6 +179,6 @@ def evaluate_classification_mrcl(training_data, testing_data, rln, tln, classifi
         loss, output = compute_loss(x_testing_all, y_testing_all, rln, tln, classification_parameters)
         test_accuracy(y_testing_all, output)
         results.append({"loss": str(loss.numpy()), "number_of_classes_seen": seen_classes, "accuracy": str(test_accuracy.result().numpy())})
-        if class_id+1 % 50 == 0:
+        if (class_id+1) % 50 == 0:
             print(f"Class {class_id}, loss {loss}, accuracy {test_accuracy.result()}")
     return results
