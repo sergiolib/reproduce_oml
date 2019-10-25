@@ -24,7 +24,7 @@ argument_parser.add_argument("--n_functions", type=int, default=10,
                              help="number of functions to sample per epoch")
 argument_parser.add_argument("--sample_length", type=int, default=32,
                              help="length of each sequence sampled")
-argument_parser.add_argument("--pre_train_repetitions", type=int, default=40,
+argument_parser.add_argument("--repetitions", type=int, default=40,
                              help="number of train repetitions for generating the data samples")
 argument_parser.add_argument("--save_models_every", type=int, default=100,
                              help="Amount of epochs to pass before saving models")
@@ -55,7 +55,7 @@ for epoch in tqdm.trange(args.epochs):
     # Sample data
     x_traj, y_traj, x_rand, y_rand = gen_sine_data(tasks=tasks, n_functions=args.n_functions,
                                                    sample_length=args.sample_length,
-                                                   repetitions=args.pre_train_repetitions)
+                                                   repetitions=args.repetitions)
 
     # Reshape for inputting to training method
     x_traj = np.vstack(x_traj)

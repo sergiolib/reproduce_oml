@@ -52,6 +52,7 @@ def pretrain_mrcl(x_traj, y_traj, x_rand, y_rand, tln, tln_initial, rln, meta_op
     w.assign(new_w)
     b.assign(new_b)
 
+    # Save actual values for later retrieval
     copy_parameters(tln, tln_initial)
 
     # Sample x_rand, y_rand from s_remember
@@ -74,6 +75,7 @@ def pretrain_mrcl(x_traj, y_traj, x_rand, y_rand, tln, tln_initial, rln, meta_op
     meta_optimizer.apply_gradients(zip(tln_gradients + rln_gradients,
                                        tln_initial.trainable_variables + rln.trainable_variables))
 
+    # Retrieve updated tln parameters
     copy_parameters(tln_initial, tln)
 
     return outer_loss
