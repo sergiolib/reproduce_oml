@@ -38,8 +38,11 @@ def compute_loss(x, y, tln, rln, loss_fun):
 def pretrain_mrcl(x_traj, y_traj, x_rand, y_rand, tln, tln_initial, rln, meta_optimizer, loss_function, beta):
     # Random reinitialization of last layer
     w = tln.layers[-1].weights[0]
+    b = tln.layers[-1].weights[1]
     new_w = tln.layers[-1].kernel_initializer(shape=w.shape)
-    tln.layers[-1].weights[0].assign(new_w)
+    new_b = tf.keras.initializers.zeros(shape=b.shape)
+    w.assign(new_w)
+    b.assign(new_b)
 
     copy_parameters(tln, tln_initial)
 
