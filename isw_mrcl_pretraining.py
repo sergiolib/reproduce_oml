@@ -1,14 +1,14 @@
+import argparse
 import datetime
 from os import makedirs
+
+import numpy as np
 import tensorflow as tf
 import tqdm
-import numpy as np
 
 from datasets.synth_datasets import gen_sine_data, gen_tasks
 from experiments.exp4_2.isw import mrcl_isw
 from experiments.training import pretrain_mrcl, save_models
-
-import argparse
 
 # Parse arguments
 argument_parser = argparse.ArgumentParser()
