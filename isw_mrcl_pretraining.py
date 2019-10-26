@@ -30,6 +30,8 @@ argument_parser.add_argument("--save_models_every", type=int, default=100,
                              help="Amount of epochs to pass before saving models")
 argument_parser.add_argument("--post_results_every", type=int, default=50,
                              help="Amount of epochs to pass before posting results in Tensorboard")
+argument_parser.add_argument("--resetting_last_layer", default=True, type=bool,
+                             help="Reinitialization of the last layer of the TLN")
 
 args = argument_parser.parse_args()
 
@@ -51,6 +53,19 @@ meta_optimizer = tf.keras.optimizers.Adam(learning_rate=args.meta_learning_rate)
 
 # Fabricate TLN clone for storing the parameters at the beginning of each iteration
 tln_initial = tf.keras.models.clone_model(tln)
+
+_, _, x_val, y_val = gen_sine_data(tasks=tasks, n_functions=args.n_functions,
+                                   sample_length=args.sample_length,
+                                   repetitions=args.repetitions)
+
+# Reshape for inputting to training method
+x_val = np.vstack(x_val)
+y_val = np.hstack(y_val)
+
+# Numpy -> Tensorflow
+x_val = tf.convert_to_tensor(x_val, dtype=tf.float32)
+y_val = tf.convert_to_tensor(y_val, dtype=tf.float32)
+
 for epoch in tqdm.trange(args.epochs):
     # Sample data
     x_traj, y_traj, x_rand, y_rand = gen_sine_data(tasks=tasks, n_functions=args.n_functions,
@@ -75,7 +90,8 @@ for epoch in tqdm.trange(args.epochs):
                          rln=rln, tln=tln, tln_initial=tln_initial,
                          meta_optimizer=meta_optimizer,
                          loss_function=loss_fun,
-                         beta=args.inner_learning_rate, reset_last_layer=False)
+                         beta=args.inner_learning_rate,
+                         reset_last_layer=args.resetting_last_layer)
 
     # Check metrics for Tensorboard to be included every "post_results_every" epochs
     if epoch % args.post_results_every == 0:
@@ -93,7 +109,7 @@ for epoch in tqdm.trange(args.epochs):
         save_models(model=tln, name=f"tln_{epoch}")
 
     if epoch % args.post_results_every == 0:
-        x = x_rand
+        x = x_val
         rep = rln(x)
         rep = [tf.reshape(r, (30, 10, 1)) for r in rep]
         rep = [r / tf.reduce_max(r) for r in rep]

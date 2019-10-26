@@ -29,7 +29,7 @@ def train_and_evaluate(x_train, y_train, x_test, y_test, rln, tln, optimizer, lo
         output_loss /= i
 
         results[cls] = {"loss": np.asscalar(np.array(output_loss)),
-                        "number_of_classes_seen": len(np.unique(np.argmax(x_test_classes_seen[:, 1:], axis=1)))}
+                        "number_of_classes_seen": cls + 1}
 
     return results
 

@@ -34,6 +34,8 @@ argument_parser.add_argument("--learning_rates", nargs="+",
                              type=float, help="Model file for the tln")
 argument_parser.add_argument("--results_file", default="evaluation_results.json", type=str,
                              help="Evaluation results file")
+argument_parser.add_argument("--resetting_last_layer", default=True, type=bool,
+                             help="Reinitialization of the last layer of the TLN")
 
 args = argument_parser.parse_args()
 
@@ -74,13 +76,14 @@ for trajectory in tqdm.trange(args.tests):
         rln = tf.keras.models.load_model(args.model_file_rln)
         tln = tf.keras.models.load_model(args.model_file_tln)
 
-        # Random reinitialization of last layer
-        w = tln.layers[-1].weights[0]
-        b = tln.layers[-1].weights[1]
-        new_w = tf.keras.initializers.he_normal()(shape=w.shape)
-        tln.layers[-1].weights[0].assign(new_w)
-        new_b = tf.keras.initializers.zeros()(shape=b.shape)
-        tln.layers[-1].weights[1].assign(new_b)
+        if args.resetting_last_layer:
+            # Random reinitialization of last layer
+            w = tln.layers[-1].weights[0]
+            b = tln.layers[-1].weights[1]
+            new_w = tf.keras.initializers.he_normal()(shape=w.shape)
+            w.assign(new_w)
+            new_b = tf.keras.initializers.zeros()(shape=b.shape)
+            b.assign(new_b)
 
         optimizer = tf.keras.optimizers.SGD(learning_rate=lr)
         results = train_and_evaluate(x_train=x_train, y_train=y_train,
