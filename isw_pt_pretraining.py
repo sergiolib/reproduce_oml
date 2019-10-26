@@ -89,13 +89,13 @@ for rln_layers, lr in gen:
             if previous_val_loss < val_loss:
                 val_loss_counts += 1
                 if val_loss_counts == 1:
-                    p.save_model(f"final_{lr}_{rln_layers}_{tln_layers}")
+                    p.save_model(f"final_lr{lr}_rln{rln_layers}_rln{tln_layers}")
                 elif val_loss_counts >= 6:
                     break
             else:
                 val_loss_counts = 0
 
         if epoch % args.save_models_every == 0:
-            p.save_model(f"{epoch}_{rln_layers}_{tln_layers}")
+            p.save_model(f"{epoch}_lr{lr}_rln{rln_layers}_tln{tln_layers}")
 
         epoch += 1
