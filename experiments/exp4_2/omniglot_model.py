@@ -162,7 +162,6 @@ def evaluate_classification_mrcl(training_data, testing_data, rln, tln, classifi
     results = []
 
     test_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='test_accuracy')
-    train_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='train_accuracy')
     print(f"Start training with lr: {classification_parameters['online_learning_rate']}")
     for class_id in range(200):
         seen_classes = seen_classes + 1
@@ -180,24 +179,32 @@ def evaluate_classification_mrcl(training_data, testing_data, rln, tln, classifi
         x_training_all = x_training[:seen_classes * 15]
         y_training_all = y_training[:seen_classes * 15]
 
+        data = tf.data.Dataset.from_tensor_slices((x_training_all, y_training_all)).batch(256)
+        total_correct = 0
+        for x, y in data:
+            loss, output = compute_loss(x, y, rln, tln, classification_parameters)
+            after_softmax = tf.nn.softmax(output, axis=1)
+            correct_prediction = tf.equal(tf.cast(tf.argmax(after_softmax, axis=1), tf.int32), y)
+            total_correct = total_correct + tf.reduce_sum(tf.cast(correct_prediction, tf.float32))
+        train_accuracy = total_correct/(seen_classes * 15)
+
         x_testing_all = x_testing[:seen_classes * 5]
         y_testing_all = y_testing[:seen_classes * 5]
 
-        loss, output = compute_loss(x_training_all, y_training_all, rln, tln, classification_parameters)
-        after_softmax = tf.nn.softmax(output, axis=1)
-        train_accuracy(y_training_all, after_softmax)
-
-        # loss, output = compute_loss(x_testing_all, y_testing_all, rln, tln, classification_parameters)
-        # after_softmax = tf.nn.softmax(output, axis=1)
-        # test_accuracy(y_testing_all, after_softmax)
+        data = tf.data.Dataset.from_tensor_slices((x_testing_all, y_testing_all)).batch(256)
+        total_correct = 0
+        for x, y in data:
+            loss, output = compute_loss(x, y, rln, tln, classification_parameters)
+            after_softmax = tf.nn.softmax(output, axis=1)
+            correct_prediction = tf.equal(tf.cast(tf.argmax(after_softmax, axis=1), tf.int32), y)
+            total_correct = total_correct + tf.reduce_sum(tf.cast(correct_prediction, tf.float32))
+        test_accuracy = total_correct/(seen_classes * 15)
 
         results.append({"number_of_classes_seen": seen_classes,
-                        "test_accuracy": str(test_accuracy.result().numpy())})
-                        #"train_accuracy": str(train_accuracy.result().numpy())})
+                        "test_accuracy": str(test_accuracy.numpy()),
+                        "train_accuracy": str(train_accuracy.numpy())})
 
-        if (class_id+1) % 50 == 0:
-            print(f"Class {class_id}, test accuracy {test_accuracy.result()}")#,  train accuracy {train_accuracy.result()}")
+        #if (class_id+1) % 50 == 0:
+        print(f"Class {class_id}, test accuracy {test_accuracy.numpy()},  train accuracy {train_accuracy.numpy()}")
 
-        train_accuracy.reset_states()
-        test_accuracy.reset_states()
     return results
