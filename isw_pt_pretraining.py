@@ -25,7 +25,7 @@ argument_parser.add_argument("--repetitions", type=int, default=40,
                              help="Number of train repetitions for generating the data samples")
 argument_parser.add_argument("--save_models_every", type=int, default=100,
                              help="Amount of epochs to pass before saving models")
-argument_parser.add_argument("--check_val_every", type=int, default=1,
+argument_parser.add_argument("--check_val_every", type=int, default=100,
                              help="Amount of epochs to pass before checking validation loss")
 
 args = argument_parser.parse_args()
@@ -84,7 +84,7 @@ for tln_layers, rln_layers, lr, l2_lambda in gen:
                 val_loss_counts += 1
                 if val_loss_counts == 1:
                     p.save_model(f"final_lr{lr}_rln{rln_layers}_rln{tln_layers}_l2reg{l2_lambda}")
-                elif val_loss_counts >= 50:
+                elif val_loss_counts >= 6:
                     break
             else:
                 previous_val_loss = val_loss
