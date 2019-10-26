@@ -8,6 +8,8 @@ from experiments.training import save_models
 import os
 import json
 
+gpus = tf.config.experimental.list_physical_devices('GPU')
+tf.config.experimental.set_virtual_device_configuration(gpus[0], [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=7168)])
 print(f"GPU is available: {tf.test.is_gpu_available()}")
 
 dataset = "omniglot"
@@ -31,8 +33,6 @@ classification_parameters = {
     "meta_optimizer": tf.optimizers.Adam
 }
 
-gpus = tf.config.experimental.list_physical_devices('GPU')
-tf.config.experimental.set_virtual_device_configuration(gpus[0], [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=4096)])
 
 current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 train_log_dir = 'logs/classification/gradient_tape/' + current_time + '/train'
