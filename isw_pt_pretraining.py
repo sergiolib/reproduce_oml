@@ -35,19 +35,9 @@ args = argument_parser.parse_args()
 train_tasks = gen_tasks(args.n_functions)  # Generate tasks parameters
 val_tasks = gen_tasks(10)
 
-x_train, y_train, x_val, y_val = gen_sine_data(tasks=train_tasks, n_functions=args.n_functions,
-                                               sample_length=args.sample_length,
-                                               repetitions=args.repetitions)
-
-# Reshape for inputting to training method
-x_train = np.vstack(x_train)
-y_train = np.vstack(y_train)
-
-# Numpy -> Tensorflow
-x_train = tf.convert_to_tensor(x_train, dtype=tf.float32)
-y_train = tf.convert_to_tensor(y_train, dtype=tf.float32)
-x_train = tf.reshape(x_train, (-1, args.n_functions + 1))
-y_train = tf.reshape(y_train, (-1,))
+_, _, x_val, y_val = gen_sine_data(tasks=val_tasks, n_functions=args.n_functions,
+                                   sample_length=args.sample_length,
+                                   repetitions=args.repetitions)
 
 # Numpy -> Tensorflow
 x_val = tf.convert_to_tensor(x_val, dtype=tf.float32)
@@ -65,12 +55,25 @@ for tln_layers, rln_layers, lr in gen:
     train_summary_writer = tf.summary.create_file_writer(train_log_dir)
     p.build_model(n_layers_rln=rln_layers, n_layers_tln=tln_layers)
 
-    optimizer = tf.keras.optimizers.SGD(learning_rate=lr)
-    val_loss_counts = 0
-    previous_val_loss = float("inf")
-    val_loss = float("inf")
-    epoch = 0
-    while True:
+    optimizer = tf.keras.optimizers.SGD(learning_rate=lr, nesterov=True)
+    # val_loss_counts = 0
+    # previous_val_loss = float("inf")
+    # val_loss = float("inf")
+    for epoch in range(args.epochs):
+        x_train, y_train, _, _ = gen_sine_data(tasks=train_tasks, n_functions=args.n_functions,
+                                               sample_length=args.sample_length,
+                                               repetitions=args.repetitions)
+
+        # Reshape for inputting to training method
+        x_train = np.vstack(x_train)
+        y_train = np.vstack(y_train)
+
+        # Numpy -> Tensorflow
+        x_train = tf.convert_to_tensor(x_train, dtype=tf.float32)
+        y_train = tf.convert_to_tensor(y_train, dtype=tf.float32)
+        x_train = tf.reshape(x_train, (-1, args.n_functions + 1))
+        y_train = tf.reshape(y_train, (-1,))
+
         training_loss = p.pre_train(x_train, y_train, optimizer, batch_size=args.batch_size)
         with train_summary_writer.as_default():
             tf.summary.scalar("Training Loss", training_loss, step=epoch)
@@ -79,18 +82,17 @@ for tln_layers, rln_layers, lr in gen:
             val_loss = p.compute_loss(x_val, y_val)
             with train_summary_writer.as_default():
                 tf.summary.scalar("Validation Loss", val_loss, step=epoch)
-
-            if previous_val_loss < val_loss:
-                val_loss_counts += 1
-                if val_loss_counts == 1:
-                    p.save_model(f"final_lr{lr}_rln{rln_layers}_rln{tln_layers}")
-                elif val_loss_counts >= 6:
-                    break
-            else:
-                previous_val_loss = val_loss
-                val_loss_counts = 0
+        #
+        #     if previous_val_loss < val_loss:
+        #         val_loss_counts += 1
+        #         if val_loss_counts == 1:
+        #             p.save_model(f"final_lr{lr}_rln{rln_layers}_rln{tln_layers}")
+        #         elif val_loss_counts >= 6:
+        #             break
+        #     else:
+        #         previous_val_loss = val_loss
+        #         val_loss_counts = 0
 
         if epoch % args.save_models_every == 0:
             p.save_model(f"{epoch}_lr{lr}_rln{rln_layers}_tln{tln_layers}")
 
-        epoch += 1
