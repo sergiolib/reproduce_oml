@@ -87,8 +87,7 @@ for rln_layers, lr in gen:
         if epoch % args.check_val_every == 0:
             val_loss = p.compute_loss(x_val, y_val)
 
-            tf.summary.scalar("Validation Loss", val_loss, "Validation set loss (MSE) while "
-                                                           "pretraining with pretraining baseline")
+            tf.summary.scalar("Validation Loss", val_loss, step=epoch)
 
             if previous_val_loss < val_loss:
                 val_loss_counts += 1
