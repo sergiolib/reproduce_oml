@@ -35,9 +35,19 @@ args = argument_parser.parse_args()
 train_tasks = gen_tasks(args.n_functions)  # Generate tasks parameters
 val_tasks = gen_tasks(10)
 
-_, _, x_val, y_val = gen_sine_data(tasks=val_tasks, n_functions=args.n_functions,
-                                   sample_length=args.sample_length,
-                                   repetitions=1)
+x_train, y_train, x_val, y_val = gen_sine_data(tasks=train_tasks, n_functions=args.n_functions,
+                                               sample_length=args.sample_length,
+                                               repetitions=args.repetitions)
+
+# Reshape for inputting to training method
+x_train = np.vstack(x_train)
+y_train = np.vstack(y_train)
+
+# Numpy -> Tensorflow
+x_train = tf.convert_to_tensor(x_train, dtype=tf.float32)
+y_train = tf.convert_to_tensor(y_train, dtype=tf.float32)
+x_train = tf.reshape(x_train, (-1, args.n_functions + 1))
+y_train = tf.reshape(y_train, (-1,))
 
 # Numpy -> Tensorflow
 x_val = tf.convert_to_tensor(x_val, dtype=tf.float32)
@@ -57,27 +67,12 @@ for rln_layers, lr in gen:
     train_summary_writer = tf.summary.create_file_writer(train_log_dir)
     p.build_model(n_layers_rln=rln_layers, n_layers_tln=tln_layers)
 
-    optimizer = tf.keras.optimizers.SGD(learning_rate=lr, nesterov=True)
+    optimizer = tf.keras.optimizers.SGD(learning_rate=lr)
     val_loss_counts = 0
     previous_val_loss = float("inf")
     val_loss = float("inf")
     epoch = 0
     while True:
-        # Sample data
-        x_train, y_train, _, _ = gen_sine_data(tasks=train_tasks, n_functions=args.n_functions,
-                                               sample_length=args.sample_length,
-                                               repetitions=args.repetitions)
-
-        # Reshape for inputting to training method
-        x_train = np.vstack(x_train)
-        y_train = np.vstack(y_train)
-
-        # Numpy -> Tensorflow
-        x_train = tf.convert_to_tensor(x_train, dtype=tf.float32)
-        y_train = tf.convert_to_tensor(y_train, dtype=tf.float32)
-        x_train = tf.reshape(x_train, (-1, args.n_functions + 1))
-        y_train = tf.reshape(y_train, (-1,))
-
         p.pre_train(x_train, y_train, optimizer, batch_size=args.batch_size)
 
         if epoch % args.check_val_every == 0:
