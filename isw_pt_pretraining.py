@@ -50,12 +50,12 @@ current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 gen = product(list(range(1, 8)), args.learning_rate)
 for rln_layers, lr in gen:
     tln_layers = 8 - rln_layers
-    train_log_dir = f'logs/pt_isw_{lr}_rln{rln_layers}_tln{tln_layers}/' + current_time + '/train'
+    train_log_dir = f'logs/pt_isw_{lr}_rln{rln_layers}_tln{tln_layers}/' + current_time + '/pre_train'
     makedirs(train_log_dir, exist_ok=True)
     train_summary_writer = tf.summary.create_file_writer(train_log_dir)
     p.build_model(n_layers_rln=rln_layers, n_layers_tln=tln_layers)
 
-    optimizer = tf.keras.optimizers.SGD(learning_rate=lr)
+    optimizer = tf.keras.optimizers.SGD(learning_rate=lr, nesterov=True)
     val_loss_counts = 0
     previous_val_loss = float("inf")
     val_loss = float("inf")
@@ -82,8 +82,8 @@ for rln_layers, lr in gen:
 
         if epoch % args.check_val_every == 0:
             val_loss = p.compute_loss(x_val, y_val)
-
-            tf.summary.scalar("Validation Loss", val_loss, step=epoch)
+            with train_summary_writer.as_default():
+                tf.summary.scalar("Validation Loss", val_loss, step=epoch)
 
             if previous_val_loss < val_loss:
                 val_loss_counts += 1
