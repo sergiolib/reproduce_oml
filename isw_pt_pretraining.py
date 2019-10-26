@@ -76,7 +76,7 @@ for rln_layers, lr in gen:
         x_train = tf.reshape(x_train, (-1, args.n_functions + 1))
         y_train = tf.reshape(y_train, (-1,))
 
-        p.pre_train(x_train, y_train, optimizer, batch_size=8)
+        p.pre_train(x_train, y_train, optimizer, batch_size=32)
 
 
         if epoch % args.check_val_every == 0:
