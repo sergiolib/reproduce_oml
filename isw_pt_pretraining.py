@@ -25,6 +25,8 @@ argument_parser.add_argument("--repetitions", type=int, default=40,
                              help="Number of train repetitions for generating the data samples")
 argument_parser.add_argument("--save_models_every", type=int, default=100,
                              help="Amount of epochs to pass before saving models")
+argument_parser.add_argument("--batch_size", type=int, default=32,
+                             help="Batch size")
 argument_parser.add_argument("--check_val_every", type=int, default=1,
                              help="Amount of epochs to pass before checking validation loss")
 
@@ -76,7 +78,7 @@ for rln_layers, lr in gen:
         x_train = tf.reshape(x_train, (-1, args.n_functions + 1))
         y_train = tf.reshape(y_train, (-1,))
 
-        p.pre_train(x_train, y_train, optimizer, batch_size=32)
+        p.pre_train(x_train, y_train, optimizer, batch_size=args.batch_size)
 
 
         if epoch % args.check_val_every == 0:
