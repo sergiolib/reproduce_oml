@@ -11,7 +11,7 @@ from datasets.synth_datasets import gen_sine_data, gen_tasks
 
 # Parse arguments
 argument_parser = argparse.ArgumentParser()
-argument_parser.add_argument("--learning_rate", nargs="+", default=[3e-3],
+argument_parser.add_argument("--learning_rate", nargs="+", type=float, default=[3e-3],
                              help="Learning rate")
 argument_parser.add_argument("--epochs", type=int, default=20000,
                              help="Number of epochs to pre train for")
