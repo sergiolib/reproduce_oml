@@ -18,6 +18,7 @@ class PretrainingBaseline:
 
     def build_model(self, n_layers_rln=6, n_layers_tln=2, hidden_units_per_layer=300, one_hot_depth=10):
         self.model_rln, self.model_tln = mrcl_isw(n_layers_rln, n_layers_tln, hidden_units_per_layer, one_hot_depth)
+        self.compute_loss = tf.function(self._compute_loss)
 
     def save_model(self, name):
         try:
@@ -35,8 +36,7 @@ class PretrainingBaseline:
         self.model_rln = tf.keras.models.load_model(f"saved_models/{name}_rln.tf")
         self.model_tln = tf.keras.models.load_model(f"saved_models/{name}_tln.tf")
 
-    @tf.function
-    def compute_loss(self, x, y):
+    def _compute_loss(self, x, y):
         return self.loss_function(y, self.model_tln(self.model_rln(x)))
 
     def pre_train(self, x_pre_train, y_pre_train, optimizer, batch_size=1):

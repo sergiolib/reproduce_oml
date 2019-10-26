@@ -46,7 +46,6 @@ y_val = tf.convert_to_tensor(y_val, dtype=tf.float32)
 # Main pre training loop
 p = PretrainingBaseline(tf.keras.losses.MeanSquaredError())
 loss = float("inf")
-pre_train_not_finished = True
 # Create logs directories
 current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 gen = product(list(range(1, 8)), args.learning_rate)
@@ -62,7 +61,7 @@ for rln_layers, lr in gen:
     previous_val_loss = float("inf")
     val_loss = float("inf")
     epoch = 0
-    while pre_train_not_finished:
+    while True:
         # Sample data
         x_train, y_train, _, _ = gen_sine_data(tasks=train_tasks, n_functions=args.n_functions,
                                                sample_length=args.sample_length,
@@ -79,7 +78,6 @@ for rln_layers, lr in gen:
         y_train = tf.reshape(y_train, (-1,))
 
         p.pre_train(x_train, y_train, optimizer, batch_size=args.batch_size)
-
 
         if epoch % args.check_val_every == 0:
             val_loss = p.compute_loss(x_val, y_val)
