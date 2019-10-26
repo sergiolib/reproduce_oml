@@ -33,9 +33,9 @@ def run(results_folder="mrcl_omniglot_eval_results", load_saved="rln_pretraining
     }
 
     current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    train_log_dir = 'logs/classification/gradient_tape/' + current_time + '/train'
+    train_log_dir = results_folder + '/logs/classification/gradient_tape/' + current_time + '/train'
 
-    # train_summary_writer = tf.summary.create_file_writer(train_log_dir)
+    train_summary_writer = tf.summary.create_file_writer(train_log_dir)
 
     try:
         os.stat(results_folder)
@@ -57,6 +57,6 @@ def run(results_folder="mrcl_omniglot_eval_results", load_saved="rln_pretraining
         all_results[f"{lr}"] = evaluate_classification_mrcl(evaluation_training_data, evaluation_test_data,
                                                             rln, tln, classification_parameters)
         lr_str = f"{lr}".replace(".", "_")
-        with open(f"evaluation_results/mrcl_omniglot_{lr_str}.json", 'w') as f:  # writing JSON object
+        with open(f"{results_folder}/mrcl_omniglot_{lr_str}.json", 'w') as f:  # writing JSON object
             json.dump(all_results[f"{lr}"], f)
 
