@@ -7,7 +7,10 @@ from experiments.exp4_2.omniglot_model import mrcl_omniglot, get_data_by_classes
 from datasets.tf_datasets import load_omniglot
 
 
-def run(load_saved=None):
+def run(results_folder="mrcl_omniglot_eval_results", load_saved="rln_pretraining_mrcl_1900_omniglot.tf"):
+
+    print(f"GPU is available: {tf.test.is_gpu_available()}")
+
     dataset = "omniglot"
     background_data, evaluation_data = load_omniglot(dataset, verbose=1)
     background_training_data, evaluation_training_data, evaluation_test_data = get_data_by_classes(background_data,
@@ -32,14 +35,12 @@ def run(load_saved=None):
     current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     train_log_dir = 'logs/classification/gradient_tape/' + current_time + '/train'
 
-    train_summary_writer = tf.summary.create_file_writer(train_log_dir)
+    # train_summary_writer = tf.summary.create_file_writer(train_log_dir)
 
     try:
-        os.stat("evaluation_results")
+        os.stat(results_folder)
     except IOError:
-        os.mkdir("evaluation_results")
-
-    print(f"GPU is available: {tf.test.is_gpu_available()}")
+        os.mkdir(results_folder)
 
     lrs = [0.3, 0.1, 0.03, 0.01, 0.003, 0.001, 0.0003, 0.0001, 0.00003, 0.00001]
     all_results = {}
@@ -49,7 +50,7 @@ def run(load_saved=None):
         rln, tln = mrcl_omniglot(200)
 
         if load_saved is not None:
-            print("Loading pretrained RLN...")
+            print("Loading pretrained RLN weights...")
             rln_saved = tf.keras.models.load_model("saved_models/" + load_saved)
             rln.set_weights(rln_saved.get_weights())
 
@@ -59,7 +60,3 @@ def run(load_saved=None):
         with open(f"evaluation_results/mrcl_omniglot_{lr_str}.json", 'w') as f:  # writing JSON object
             json.dump(all_results[f"{lr}"], f)
 
-
-run()
-# Uncomment this line if you want to use pretrained weights in RLN
-# run(load_saved="rln_pretraining_mrcl_1900_omniglot.tf")
