@@ -181,7 +181,15 @@ def evaluate_classification_mrcl(training_data, testing_data, rln, tln, classifi
 
         x_training_all = x_training[:seen_classes * 15]
         y_training_all = y_training[:seen_classes * 15]
-        print(seen_classes * 15)
+        data = tf.data.Dataset.from_tensor_slices((x_training_all, y_training_all)).batch(256)
+        total_correct = 0
+        for x, y in data:
+            loss, output = compute_loss(x, y, rln, tln, classification_parameters)
+            after_softmax = tf.nn.softmax(output, axis=1)
+            correct_prediction = tf.equal(tf.cast(tf.argmax(after_softmax, axis=1), tf.int32), y)
+            total_correct = total_correct + tf.reduce_sum(tf.cast(correct_prediction, tf.float32))
+        train_accuracy = total_correct/(seen_classes * 15)
+
         x_testing_all = x_testing[:seen_classes * 5]
         y_testing_all = y_testing[:seen_classes * 5]
         data = tf.data.Dataset.from_tensor_slices((x_testing_all, y_testing_all)).batch(256)
