@@ -1,5 +1,7 @@
 import tensorflow as tf
 import numpy as np
+from experiments.exp_4_3.basic_pt_eval import basic_pt_eval
+from experiments.exp_4_3.basic_pt_train import basic_pt_train
 
 
 def run_isw():
@@ -20,14 +22,14 @@ def run_isw():
 
     f_inds_ev, train_data = prepare_train_data(with_split=False)
 
-    basic_model = basic_pt_isw(n_layers=n_layers)
+    basic_model = basic_pt_isw_model(n_layers=n_layers)
 
     basic_pt_train(params, train_data, basic_model)
 
     eval_data = prepare_eval_data(f_inds_ev)
 
     # Approach no.1: Create and pretrain one model and then make different versions by splitting it in the evaluation
-    # Approach no.2: Create and pretrain different models of RLN & TLN so you dont have to worry about different splits
+    # Approach no.2: Create and pretrain different models of RLN & TLN so you dont have to worry about different splits)
 
     # Validation in order to find the best split
     # First layer is always fixed, last layer is always trainable
