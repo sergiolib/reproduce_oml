@@ -35,6 +35,8 @@ def get_data_by_classes(background_data, evaluation_data):
     background_data = np.array(sorted(list(tfds.as_numpy(background_data)), key=itemgetter('label')))
     evaluation_data = np.array(sorted(list(tfds.as_numpy(evaluation_data)), key=itemgetter('label')))
     background_training_data = []
+    background_training_data_15 = []
+    background_training_data_5 = []
     evaluation_training_data = []
     evaluation_test_data = []
 
@@ -46,7 +48,9 @@ def get_data_by_classes(background_data, evaluation_data):
 
     for i in range(background_number_of_classes):
         background_training_data.append(background_data[i * 20:(i + 1) * 20])
-    return background_training_data, evaluation_training_data, evaluation_test_data
+        background_training_data_15.append(background_data[i * 20:i * 20 + 15])
+        background_training_data_5.append(background_data[i * 20 + 15:(i + 1) * 20])
+    return background_training_data, evaluation_training_data, evaluation_test_data, background_training_data_15, background_training_data_5
 
 
 def partition_into_disjoint(data):
@@ -177,7 +181,6 @@ def evaluate_classification_mrcl(training_data, testing_data, rln, tln, classifi
 
         x_training_all = x_training[:seen_classes * 15]
         y_training_all = y_training[:seen_classes * 15]
-
         data = tf.data.Dataset.from_tensor_slices((x_training_all, y_training_all)).batch(256)
         total_correct = 0
         for x, y in data:
@@ -189,7 +192,6 @@ def evaluate_classification_mrcl(training_data, testing_data, rln, tln, classifi
 
         x_testing_all = x_testing[:seen_classes * 5]
         y_testing_all = y_testing[:seen_classes * 5]
-
         data = tf.data.Dataset.from_tensor_slices((x_testing_all, y_testing_all)).batch(256)
         total_correct = 0
         for x, y in data:
@@ -203,7 +205,7 @@ def evaluate_classification_mrcl(training_data, testing_data, rln, tln, classifi
                         "test_accuracy": str(test_accuracy.numpy()),
                         "train_accuracy": str(train_accuracy.numpy())})
 
-        #if (class_id+1) % 50 == 0:
-        print(f"Class {class_id}, test accuracy {test_accuracy.numpy()},  train accuracy {train_accuracy.numpy()}")
+        if (class_id+1) % 50 == 0:
+            print(f"Class {class_id}, test accuracy {test_accuracy.numpy()},  train accuracy {train_accuracy.numpy()}")
 
     return results

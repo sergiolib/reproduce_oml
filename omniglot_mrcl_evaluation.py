@@ -12,7 +12,7 @@ print(f"GPU is available: {tf.test.is_gpu_available()}")
 
 dataset = "omniglot"
 background_data, evaluation_data = load_omniglot(dataset, verbose=1)
-background_training_data, evaluation_training_data, evaluation_test_data = get_data_by_classes(background_data,
+background_training_data, evaluation_training_data, evaluation_test_data, background_training_data_15, background_training_data_5 = get_data_by_classes(background_data,
                                                                                                evaluation_data)
 assert len(evaluation_training_data) == 659
 assert len(evaluation_test_data) == 659
@@ -31,6 +31,8 @@ classification_parameters = {
     "meta_optimizer": tf.optimizers.Adam
 }
 
+gpus = tf.config.experimental.list_physical_devices('GPU')
+tf.config.experimental.set_virtual_device_configuration(gpus[0], [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=4096)])
 
 current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 train_log_dir = 'logs/classification/gradient_tape/' + current_time + '/train'
@@ -51,7 +53,7 @@ for lr in lrs:
     classification_parameters["online_learning_rate"] = lr
     rln, tln = mrcl_omniglot(200)
     rln.set_weights(rln_saved.get_weights())
-    all_results[f"{lr}"] = evaluate_classification_mrcl(evaluation_training_data, evaluation_test_data, rln, tln, classification_parameters)
+    all_results[f"{lr}"] = evaluate_classification_mrcl(background_training_data_15, background_training_data_5, rln, tln, classification_parameters)
     lr_str = f"{lr}".replace(".", "_")
     with open(f"evaluation_results/mrcl_omniglot_{lr_str}.json", 'w') as f:  # writing JSON object
         json.dump(all_results[f"{lr}"], f)

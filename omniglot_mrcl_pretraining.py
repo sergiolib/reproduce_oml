@@ -10,7 +10,7 @@ print(f"GPU is available: {tf.test.is_gpu_available()}")
 
 dataset = "omniglot"
 background_data, evaluation_data = load_omniglot(dataset, verbose=1)
-background_training_data, evaluation_training_data, evaluation_test_data = get_data_by_classes(background_data,
+background_training_data, evaluation_training_data, evaluation_test_data, _, _ = get_data_by_classes(background_data,
                                                                                                evaluation_data)
 assert len(evaluation_training_data) == 659
 assert len(evaluation_test_data) == 659
