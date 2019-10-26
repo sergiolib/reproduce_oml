@@ -25,7 +25,7 @@ argument_parser.add_argument("--repetitions", type=int, default=40,
                              help="Number of train repetitions for generating the data samples")
 argument_parser.add_argument("--save_models_every", type=int, default=100,
                              help="Amount of epochs to pass before saving models")
-argument_parser.add_argument("--batch_size", type=int, default=32,
+argument_parser.add_argument("--batch_size", type=int, default=1,
                              help="Batch size")
 argument_parser.add_argument("--check_val_every", type=int, default=1,
                              help="Amount of epochs to pass before checking validation loss")
@@ -58,10 +58,8 @@ p = PretrainingBaseline(tf.keras.losses.MeanSquaredError())
 loss = float("inf")
 # Create logs directories
 current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-gen = product(list(range(1, 8)), args.learning_rate)
-for rln_layers, lr in gen:
-    lr = float(lr)
-    tln_layers = 8 - rln_layers
+gen = product(list(range(1, 8)), list(range(1, 8)), args.learning_rate)
+for tln_layers, rln_layers, lr in gen:
     train_log_dir = f'logs/pt_isw_{lr}_rln{rln_layers}_tln{tln_layers}/' + current_time + '/pre_train'
     makedirs(train_log_dir, exist_ok=True)
     train_summary_writer = tf.summary.create_file_writer(train_log_dir)
@@ -73,7 +71,9 @@ for rln_layers, lr in gen:
     val_loss = float("inf")
     epoch = 0
     while True:
-        p.pre_train(x_train, y_train, optimizer, batch_size=args.batch_size)
+        training_loss = p.pre_train(x_train, y_train, optimizer, batch_size=args.batch_size)
+        with train_summary_writer.as_default():
+            tf.summary.scalar("Training Loss", training_loss, step=epoch)
 
         if epoch % args.check_val_every == 0:
             val_loss = p.compute_loss(x_val, y_val)
