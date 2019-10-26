@@ -9,10 +9,6 @@ import tensorflow as tf
 from baseline_methods.pretraining import PretrainingBaseline
 from datasets.synth_datasets import gen_sine_data, gen_tasks
 
-gpus = tf.config.experimental.list_physical_devices('GPU')
-f = tf.config.experimental.set_virtual_device_configurations
-f(gpus[0], [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=1024)])
-
 # Parse arguments
 argument_parser = argparse.ArgumentParser()
 argument_parser.add_argument("--learning_rate", nargs="+", default=[3e-3],
