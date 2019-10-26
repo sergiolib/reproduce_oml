@@ -50,6 +50,7 @@ loss = float("inf")
 current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 gen = product(list(range(1, 8)), args.learning_rate)
 for rln_layers, lr in gen:
+    lr = float(lr)
     tln_layers = 8 - rln_layers
     train_log_dir = f'logs/pt_isw_{lr}_rln{rln_layers}_tln{tln_layers}/' + current_time + '/pre_train'
     makedirs(train_log_dir, exist_ok=True)
