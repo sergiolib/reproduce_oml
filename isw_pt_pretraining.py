@@ -11,7 +11,7 @@ from datasets.synth_datasets import gen_sine_data, gen_tasks
 
 # Parse arguments
 argument_parser = argparse.ArgumentParser()
-argument_parser.add_argument("--learning_rate", nargs="+", type=float, default=[3e-3],
+argument_parser.add_argument("--learning_rate", nargs="+", type=float, default=[0.00003],
                              help="Learning rate")
 argument_parser.add_argument("--epochs", type=int, default=20000,
                              help="Number of epochs to pre train for")
@@ -25,7 +25,7 @@ argument_parser.add_argument("--repetitions", type=int, default=40,
                              help="Number of train repetitions for generating the data samples")
 argument_parser.add_argument("--save_models_every", type=int, default=100,
                              help="Amount of epochs to pass before saving models")
-argument_parser.add_argument("--batch_size", type=int, default=1,
+argument_parser.add_argument("--batch_size", type=int, default=100,
                              help="Batch size")
 argument_parser.add_argument("--check_val_every", type=int, default=1,
                              help="Amount of epochs to pass before checking validation loss")
@@ -56,9 +56,9 @@ for tln_layers, rln_layers, lr in gen:
     p.build_model(n_layers_rln=rln_layers, n_layers_tln=tln_layers)
 
     optimizer = tf.keras.optimizers.SGD(learning_rate=lr, nesterov=True)
-    # val_loss_counts = 0
-    # previous_val_loss = float("inf")
-    # val_loss = float("inf")
+    val_loss_counts = 0
+    previous_val_loss = float("inf")
+    val_loss = float("inf")
     for epoch in range(args.epochs):
         x_train, y_train, _, _ = gen_sine_data(tasks=train_tasks, n_functions=args.n_functions,
                                                sample_length=args.sample_length,
@@ -74,24 +74,24 @@ for tln_layers, rln_layers, lr in gen:
         x_train = tf.reshape(x_train, (-1, args.n_functions + 1))
         y_train = tf.reshape(y_train, (-1,))
 
-        training_loss = p.pre_train(x_train, y_train, optimizer, batch_size=args.batch_size)
+        training_loss = p.pre_train(x_train, y_train, learning_rate=lr)
         with train_summary_writer.as_default():
             tf.summary.scalar("Training Loss", training_loss, step=epoch)
 
         if epoch % args.check_val_every == 0:
-            val_loss = p.compute_loss(x_val, y_val)
+            val_loss = p.compute_loss_no_training(x_val, y_val)
             with train_summary_writer.as_default():
                 tf.summary.scalar("Validation Loss", val_loss, step=epoch)
-        #
-        #     if previous_val_loss < val_loss:
-        #         val_loss_counts += 1
-        #         if val_loss_counts == 1:
-        #             p.save_model(f"final_lr{lr}_rln{rln_layers}_rln{tln_layers}")
-        #         elif val_loss_counts >= 6:
-        #             break
-        #     else:
-        #         previous_val_loss = val_loss
-        #         val_loss_counts = 0
+
+            if previous_val_loss < val_loss:
+                val_loss_counts += 1
+                if val_loss_counts == 1:
+                    p.save_model(f"final_lr{lr}_rln{rln_layers}_rln{tln_layers}")
+                elif val_loss_counts >= 300:
+                    break
+            else:
+                previous_val_loss = val_loss
+                val_loss_counts = 0
 
         if epoch % args.save_models_every == 0:
             p.save_model(f"{epoch}_lr{lr}_rln{rln_layers}_tln{tln_layers}")
