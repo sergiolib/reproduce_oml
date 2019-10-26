@@ -78,7 +78,6 @@ for rln_layers, lr in gen:
 
         p.pre_train(x_train, y_train, optimizer, batch_size=8)
 
-        previous_val_loss = val_loss
 
         if epoch % args.check_val_every == 0:
             val_loss = p.compute_loss(x_val, y_val)
@@ -92,6 +91,7 @@ for rln_layers, lr in gen:
                 elif val_loss_counts >= 6:
                     break
             else:
+                previous_val_loss = val_loss
                 val_loss_counts = 0
 
         if epoch % args.save_models_every == 0:
