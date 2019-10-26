@@ -1,3 +1,7 @@
+import tensorflow as tf
+import numpy as np
+
+
 def basic_pt_eval(data, model, params, layers_to_freeze=1):
     batch_size = params["random_batch_size"]
     optimizer = params["optimizer"](learning_rate=params["learning_rate"])

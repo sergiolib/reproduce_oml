@@ -68,8 +68,3 @@ def basic_pt_train(params, data, model):
     except NotADirectoryError:
         os.makedirs("save_models")
     model.save(f"saved_models/basic_pt_final.tf", save_format="tf")
-
-
-
-
-run_basic_pt()
