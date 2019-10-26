@@ -33,7 +33,7 @@ def inner_update(x, y, tln, rln, beta, loss_fun):
         inner_loss = compute_loss(x, y, tln=tln, rln=rln, loss_fun=loss_fun)
     gradients = Wj_Tape.gradient(inner_loss, tln.trainable_variables)
     for g, v in zip(gradients, tln.trainable_variables):
-        v.assign_sub(beta * g)
+        v.assign(v - beta * g)
 
 
 @tf.function
