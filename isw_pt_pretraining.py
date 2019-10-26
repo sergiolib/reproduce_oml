@@ -9,6 +9,10 @@ import tensorflow as tf
 from baseline_methods.pretraining import PretrainingBaseline
 from datasets.synth_datasets import gen_sine_data, gen_tasks
 
+gpus = tf.config.experimental.list_physical_devices('GPU')
+if len(gpus) > 0:
+    tf.config.experimental.set_virtual_device_configuration(gpus[0], [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=1024)])
+
 # Parse arguments
 argument_parser = argparse.ArgumentParser()
 argument_parser.add_argument("--learning_rate", nargs="+", type=float, default=[3e-6],
@@ -45,17 +49,16 @@ y_val = tf.convert_to_tensor(y_val, dtype=tf.float32)
 loss = float("inf")
 # Create logs directories
 current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-gen = product(list(range(1, 8)), list(range(1, 8)), args.learning_rate, [0.0000001, 0.0000003, 0.000001, 0.000003, 0.00001, 0.00003,
-                                                                         0.0001, 0.0003, 0.001, 0.003])
+gen = product(list(range(1, 8)), list(range(1, 8)), args.learning_rate, [0.0000001, 0.0000003, 0.000001, 0.000003, 0.00001, 0.00003])
 p = PretrainingBaseline(tf.keras.losses.MeanSquaredError())
 for tln_layers, rln_layers, lr, l2_lambda in gen:
-    train_log_dir = f'logs/pt_isw_{lr}_rln{rln_layers}_tln{tln_layers}/' + current_time + '/pre_train'
+    train_log_dir = f'logs/pt_isw_lr{lr}_rln{rln_layers}_tln{tln_layers}_l2reg{l2_lambda}/' + current_time + '/pre_train'
     makedirs(train_log_dir, exist_ok=True)
     train_summary_writer = tf.summary.create_file_writer(train_log_dir)
-    p.build_model(n_layers_rln=rln_layers, n_layers_tln=tln_layers)
+    p.build_model(n_layers_rln=rln_layers, n_layers_tln=tln_layers, seed=0)
     val_loss_counts = 0
-    previous_val_loss = float("inf")
-    val_loss = float("inf")
+    previous_val_loss = p.compute_loss_no_training(x_val, y_val)
+    val_loss = None
     for epoch in range(args.epochs):
         x_train, y_train, _, _ = gen_sine_data(tasks=train_tasks, n_functions=args.n_functions,
                                                sample_length=args.sample_length,
@@ -71,12 +74,12 @@ for tln_layers, rln_layers, lr, l2_lambda in gen:
         x_train = tf.reshape(x_train, (-1, args.n_functions + 1))
         y_train = tf.reshape(y_train, (-1,))
 
-        training_loss = p.pre_train(x_train, y_train, learning_rate=lr, l2_lambda=l2_lambda)
+        training_loss = float(p.pre_train(x_train, y_train, learning_rate=lr, l2_lambda=l2_lambda))
         with train_summary_writer.as_default():
             tf.summary.scalar("Training Loss", training_loss, step=epoch)
 
         if epoch % args.check_val_every == 0:
-            val_loss = p.compute_loss_no_training(x_val, y_val)
+            val_loss = float(p.compute_loss_no_training(x_val, y_val))
             with train_summary_writer.as_default():
                 tf.summary.scalar("Validation Loss", val_loss, step=epoch)
 
@@ -87,9 +90,10 @@ for tln_layers, rln_layers, lr, l2_lambda in gen:
                 elif val_loss_counts >= 6:
                     break
             else:
-                previous_val_loss = val_loss
+                previous_val_loss = float(val_loss)
                 val_loss_counts = 0
 
         # if epoch % args.save_models_every == 0:
         #     p.save_model(f"{epoch}_lr{lr}_rln{rln_layers}_tln{tln_layers}")
         #
+    p.save_model(f"final_lr{lr}_rln{rln_layers}_rln{tln_layers}_l2reg{l2_lambda}")
