@@ -62,7 +62,7 @@ for tln_layers, rln_layers, lr, l2_lambda in gen:
     for epoch in range(args.epochs):
         x_train, y_train, _, _ = gen_sine_data(tasks=train_tasks, n_functions=args.n_functions,
                                                sample_length=args.sample_length,
-                                               repetitions=args.repetitions)
+                                               repetitions=args.repetitions, seed=epoch)
 
         # Reshape for inputting to training method
         x_train = np.vstack(x_train)

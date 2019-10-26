@@ -1,8 +1,10 @@
 """ Loader file for synthetic data sets"""
 
 from numpy import random as np_random, zeros, sin as np_sin
+from numpy.random import seed as npseed
 from math import pi
 from random import sample
+import random
 
 # Constant Sine values as defined in section 4.1
 amp_min = 0.1
@@ -25,9 +27,10 @@ def gen_tasks(number_of_tasks):
             "phase": np_random.uniform(phase_min, phase_max, size=number_of_tasks)}
 
 
-def gen_sine_data(tasks, n_functions=10, sample_length=32, repetitions=40):
+def gen_sine_data(tasks, n_functions=10, sample_length=32, repetitions=40, seed=None):
     """
     Generate synthetic Incremental Sine Waves as defined in section 4.1
+    :param seed: Seed
     :param tasks: amplitude and phase generated samples for each possible task
     :type tasks: dict
     :param n_functions: number of functions to use (default is 10 as defined in the paper)
@@ -42,6 +45,8 @@ def gen_sine_data(tasks, n_functions=10, sample_length=32, repetitions=40):
            numpy.ndarray (n_functions x sample_length x dim),
            numpy.ndarray (n_functions x sample_length)
     """
+    random.seed(seed)
+    npseed(seed)
     tasks_subsample = sample(list(zip(tasks["amplitude"], tasks["phase"])), n_functions)  # tuples: (amp, phase)
     amplitude = [task_parameters[0] for task_parameters in tasks_subsample]
     phase = [s[1] for s in tasks_subsample]
