@@ -75,7 +75,7 @@ for epoch in tqdm.trange(args.epochs):
                          rln=rln, tln=tln, tln_initial=tln_initial,
                          meta_optimizer=meta_optimizer,
                          loss_function=loss_fun,
-                         beta=args.inner_learning_rate)
+                         beta=args.inner_learning_rate, reset_last_layer=False)
 
     # Check metrics for Tensorboard to be included every "post_results_every" epochs
     if epoch % args.post_results_every == 0:
