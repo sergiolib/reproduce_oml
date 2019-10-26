@@ -187,16 +187,16 @@ def evaluate_classification_mrcl(training_data, testing_data, rln, tln, classifi
         after_softmax = tf.nn.softmax(output, axis=1)
         train_accuracy(y_training_all, after_softmax)
 
-        loss, output = compute_loss(x_testing_all, y_testing_all, rln, tln, classification_parameters)
-        after_softmax = tf.nn.softmax(output, axis=1)
-        test_accuracy(y_testing_all, after_softmax)
+        # loss, output = compute_loss(x_testing_all, y_testing_all, rln, tln, classification_parameters)
+        # after_softmax = tf.nn.softmax(output, axis=1)
+        # test_accuracy(y_testing_all, after_softmax)
 
         results.append({"number_of_classes_seen": seen_classes,
-                        "test_accuracy": str(test_accuracy.result().numpy()),
-                        "train_accuracy": str(train_accuracy.result().numpy())})
+                        "test_accuracy": str(test_accuracy.result().numpy())})
+                        #"train_accuracy": str(train_accuracy.result().numpy())})
 
         if (class_id+1) % 50 == 0:
-            print(f"Class {class_id}, test accuracy {test_accuracy.result()},  train accuracy {train_accuracy.result()}")
+            print(f"Class {class_id}, test accuracy {test_accuracy.result()}")#,  train accuracy {train_accuracy.result()}")
 
         train_accuracy.reset_states()
         test_accuracy.reset_states()
