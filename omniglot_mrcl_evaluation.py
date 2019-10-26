@@ -60,3 +60,22 @@ def run(results_folder="mrcl_omniglot_eval_results", load_saved="rln_pretraining
         with open(f"{results_folder}/mrcl_omniglot_{lr_str}.json", 'w') as f:  # writing JSON object
             json.dump(all_results[f"{lr}"], f)
 
+
+def run_scratch():
+    """
+    Learn MRCL online without any pre-training
+    """
+
+    results_folder = "scratch_omniglot_results"
+
+    num_gb_to_use = 8
+
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+
+    tf.config.experimental.set_virtual_device_configuration(gpus[0], [
+        tf.config.experimental.VirtualDeviceConfiguration(memory_limit=(1024 * num_gb_to_use))])
+
+    run(results_folder=results_folder, load_saved=None)
+
+
+run_scratch()
