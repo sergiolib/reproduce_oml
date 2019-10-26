@@ -127,7 +127,7 @@ def inner_update(x, y, rln, tln, classification_parameters):
         inner_loss, _ = compute_loss(x, y, rln, tln, classification_parameters)
     gradients = Wj_Tape.gradient(inner_loss, tln.trainable_variables)
     for g, v in zip(gradients, tln.trainable_variables):
-        v.assign_sub(classification_parameters["inner_learning_rate"] * g)
+        v.assign(v - classification_parameters["inner_learning_rate"] * g)
 
 
 #@tf.function

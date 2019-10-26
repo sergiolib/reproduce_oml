@@ -34,7 +34,7 @@ classification_parameters = {
     "meta_optimizer": tf.optimizers.Adam
 }
 
-t = range(2000)
+t = range(20000)
 tasks = None
 
 current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -55,6 +55,6 @@ for epoch, v in enumerate(t):
         tf.summary.scalar('Sparsity', sparsity, step=epoch)
         tf.summary.scalar('Training loss', loss, step=epoch)
     print("Epoch:", epoch, "Sparsity:", sparsity, "Training loss:", loss.numpy())
-    if epoch % 100 == 0:
+    if epoch % 999 == 0:
         save_models(tln, f"tln_pretraining_mrcl_{epoch}_omniglot")
         save_models(rln, f"rln_pretraining_mrcl_{epoch}_omniglot")
