@@ -32,6 +32,10 @@ argument_parser.add_argument("--save_models_every", type=int, default=100,
                              help="Amount of epochs to pass before saving models")
 argument_parser.add_argument("--check_val_every", type=int, default=100,
                              help="Amount of epochs to pass before checking validation loss")
+argument_parser.add_argument("--n_layers_rln", type=int, nargs="+", default=5,
+                             help="Amount of layers in the RLN")
+argument_parser.add_argument("--n_layers_tln", type=int, nargs="+", default=5,
+                             help="Amount of layers in the TLN")
 
 args = argument_parser.parse_args()
 
@@ -50,9 +54,12 @@ y_val = tf.convert_to_tensor(y_val, dtype=tf.float32)
 loss = float("inf")
 # Create logs directories
 current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-gen = product(list(range(2, 7)), list(range(2, 7)), args.learning_rate)
+n_layers_tln = [args.n_layers_tln] if type(args.n_layers_tln) is int else args.n_layers_tln
+n_layers_rln = [args.n_layers_rln] if type(args.n_layers_rln) is int else args.n_layers_rln
+gen = product(n_layers_tln, n_layers_rln, args.learning_rate)
 p = PretrainingBaseline(tf.keras.losses.MeanSquaredError())
 for tln_layers, rln_layers, lr in gen:
+    print(f"tln: {tln_layers}, rln: {rln_layers}, lr: {lr}")
     train_log_dir = f'logs/pt_isw_lr{lr}_rln{rln_layers}_tln{tln_layers}/' + current_time + '/pre_train'
     makedirs(train_log_dir, exist_ok=True)
     train_summary_writer = tf.summary.create_file_writer(train_log_dir)
@@ -87,7 +94,7 @@ for tln_layers, rln_layers, lr in gen:
             if previous_val_loss - val_loss < 1e-3:
                 val_loss_counts += 1
                 if val_loss_counts == 1:
-                    p.save_model(f"final_lr{lr}_rln{rln_layers}_rln{tln_layers}")
+                    p.save_model(f"final_lr{lr}_rln{rln_layers}_tln{tln_layers}")
                 elif val_loss_counts >= 6:
                     break
             else:
@@ -97,4 +104,3 @@ for tln_layers, rln_layers, lr in gen:
         # if epoch % args.save_models_every == 0:
         #     p.save_model(f"{epoch}_lr{lr}_rln{rln_layers}_tln{tln_layers}")
         #
-    p.save_model(f"final_lr{lr}_rln{rln_layers}_rln{tln_layers}")
