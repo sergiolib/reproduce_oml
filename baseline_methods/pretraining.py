@@ -39,17 +39,15 @@ class PretrainingBaseline:
         self.model_rln = tf.keras.models.load_model(f"saved_models/{name}_rln.tf")
         self.model_tln = tf.keras.models.load_model(f"saved_models/{name}_tln.tf")
 
-    def _compute_loss(self, x, y, l2_lambda):
-        w = self.model_tln.trainable_variables + self.model_rln.trainable_variables
-        l2 = sum([tf.reduce_sum(v*v) for v in w])
-        return self.loss_function(y, self.model_tln(self.model_rln(x))) + l2_lambda * l2
+    def _compute_loss(self, x, y):
+        return self.loss_function(y, self.model_tln(self.model_rln(x)))
 
     def _compute_loss_no_regularization(self, x, y):
         return self.loss_function(y, self.model_tln(self.model_rln(x)))
 
-    def pre_train(self, x_pre_train, y_pre_train, learning_rate, l2_lambda):
+    def pre_train(self, x_pre_train, y_pre_train, learning_rate):
         with tf.GradientTape() as tape:
-            loss = self.compute_loss_training(x_pre_train, y_pre_train, tf.constant(l2_lambda))
+            loss = self.compute_loss_training(x_pre_train, y_pre_train)
         params = self.model_rln.trainable_variables + self.model_tln.trainable_variables
         gradients = tape.gradient(loss, params)
         for p, g in zip(params, gradients):
