@@ -167,9 +167,6 @@ def evaluate_classification_mrcl(training_data, testing_data, rln, tln, number_o
     y_training = tf.convert_to_tensor(y_training)
     x_testing = tf.convert_to_tensor(x_testing)
     y_testing = tf.convert_to_tensor(y_testing)
-    results = []
-
-    print(f"Start training with lr: {classification_parameters['online_learning_rate']}")
     for m in range(x_training.shape[0]):
         with tf.GradientTape() as tape:
             loss, _ = compute_loss(x_training[m], y_training[m], rln, tln, classification_parameters)
@@ -195,12 +192,5 @@ def evaluate_classification_mrcl(training_data, testing_data, rln, tln, number_o
         correct_prediction = tf.equal(tf.cast(tf.argmax(after_softmax, axis=1), tf.int32), y)
         total_correct = total_correct + tf.reduce_sum(tf.cast(correct_prediction, tf.float32))
     test_accuracy = total_correct/x_testing.shape[0]
-
-    results.append({"number_of_classes_seen": number_of_classes,
-                    "test_accuracy": str(test_accuracy.numpy()),
-                    "train_accuracy": str(train_accuracy.numpy())})
-
-    print(f"Class {number_of_classes}, test accuracy {test_accuracy.numpy()},  train accuracy {train_accuracy.numpy()}")
-
-    return results
+    return test_accuracy.numpy(), train_accuracy.numpy()
 
