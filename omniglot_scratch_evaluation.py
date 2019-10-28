@@ -1,29 +1,17 @@
 import tensorflow as tf
 import numpy as np
 import datetime
-from experiments.exp4_2.omniglot_model import mrcl_omniglot, get_data_by_classes, evaluate_classification_mrcl
-from datasets.tf_datasets import load_omniglot
 import os
 import json
 
-gpus = tf.config.experimental.list_physical_devices('GPU')
-tf.config.experimental.set_virtual_device_configuration(gpus[0], [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=7168)])
-print(f"GPU is available: {tf.test.is_gpu_available()}")
+
+from experiments.exp4_2.omniglot_model import mrcl_omniglot, get_eval_data_by_classes, evaluate_classification_mrcl
+from datasets.tf_datasets import load_omniglot
+from parameters import classification_parameters
 
 dataset = "omniglot"
 background_data, evaluation_data = load_omniglot(dataset, verbose=1)
-background_training_data, evaluation_training_data, evaluation_test_data, background_training_data_15, background_training_data_5 = get_data_by_classes(background_data,
-                                                                                               evaluation_data)
-
-classification_parameters = {
-    "meta_learning_rate": 1e-4,
-    "inner_learning_rate": 0.03,
-    "loss_function": tf.losses.SparseCategoricalCrossentropy(from_logits=True),
-    "online_optimizer": tf.optimizers.SGD,
-    "online_learning_rate": 0.001,
-    "meta_optimizer": tf.optimizers.Adam
-}
-
+evaluation_training_data, evaluation_test_data = get_eval_data_by_classes(evaluation_data)
 
 current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 train_log_dir = 'logs/classification/gradient_tape/' + current_time + '/train'
@@ -47,14 +35,16 @@ for point in points:
         rln, tln = mrcl_omniglot(point)
         tln.set_weights(original_tln.get_weights())
         rln.set_weights(original_rln.get_weights())
-        test_accuracy, train_accuracy = evaluate_classification_mrcl(evaluation_training_data, evaluation_test_data, rln, tln, point, classification_parameters)
+        test_accuracy, train_accuracy = evaluate_classification_mrcl(evaluation_training_data, evaluation_test_data,
+                                                                     rln, tln, point, classification_parameters)
         test_accuracy_results.append(test_accuracy)
         train_accuracy_results.append(train_accuracy)
         print(f"Learning rate {lr}, test accuracy {test_accuracy}, train accuracy {train_accuracy}")
 
     test_lr = lrs[np.argmax(np.array(test_accuracy_results))]
     train_lr = lrs[np.argmax(np.array(train_accuracy_results))]
-    print(f"Number of classes {point}. Best testing learning rate is {test_lr} and best training learning rate is {train_lr}.")
+    print(
+        f"Number of classes {point}. Best testing learning rate is {test_lr} and best training learning rate is {train_lr}.")
     test_accuracy_results = []
     train_accuracy_results = []
 
@@ -64,10 +54,12 @@ for point in points:
         rln, tln = mrcl_omniglot(point)
         tln.set_weights(original_tln.get_weights())
         rln.set_weights(original_rln.get_weights())
-        test_accuracy, _ = evaluate_classification_mrcl(evaluation_training_data, evaluation_test_data, rln, tln, point, classification_parameters)
+        test_accuracy, _ = evaluate_classification_mrcl(evaluation_training_data, evaluation_test_data, rln, tln, point,
+                                                        classification_parameters)
         test_accuracy_results.append(str(test_accuracy))
     lr_str = f"{test_lr}".replace(".", "_")
-    with open(f"evaluation_results_scratch_omniglot/mrcl_omniglot_testing_{point}.json", 'w') as f:  # writing JSON object
+    with open(f"evaluation_results_scratch_omniglot/mrcl_omniglot_testing_{point}.json",
+              'w') as f:  # writing JSON object
         json.dump(test_accuracy_results, f)
 
     print(f"Starting 50 iterations of evaluation training with learning rate {train_lr}.")
@@ -77,8 +69,9 @@ for point in points:
         tln.set_weights(original_tln.get_weights())
         rln.set_weights(original_rln.get_weights())
         _, train_accuracy = evaluate_classification_mrcl(evaluation_training_data, evaluation_test_data, rln,
-                                                        tln, point, classification_parameters)
+                                                         tln, point, classification_parameters)
         train_accuracy_results.append(str(train_accuracy))
     lr_str = f"{train_lr}".replace(".", "_")
-    with open(f"evaluation_results_scratch_omniglot/mrcl_omniglot_training_{point}.json", 'w') as f:  # writing JSON object
+    with open(f"evaluation_results_scratch_omniglot/mrcl_omniglot_training_{point}.json",
+              'w') as f:  # writing JSON object
         json.dump(train_accuracy_results, f)

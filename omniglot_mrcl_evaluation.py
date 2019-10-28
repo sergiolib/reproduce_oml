@@ -1,33 +1,19 @@
 import tensorflow as tf
 import datetime
 import numpy as np
-from experiments.exp4_2.omniglot_model import mrcl_omniglot, get_data_by_classes, \
-    evaluate_classification_mrcl
-from datasets.tf_datasets import load_omniglot
 import os
 import json
 
 
+from experiments.exp4_2.omniglot_model import mrcl_omniglot, get_eval_data_by_classes, evaluate_classification_mrcl
+from datasets.tf_datasets import load_omniglot
+from parameters import classification_parameters
+
+
 def evaluate(sort_samples=True, model_name="rln_pretraining_mrcl_1900_omniglot.tf"):
 
-    # gpus = tf.config.experimental.list_physical_devices('GPU')
-    # tf.config.experimental.set_virtual_device_configuration(gpus[0], [
-    #     tf.config.experimental.VirtualDeviceConfiguration(memory_limit=7168)])
-    # print(f"GPU is available: {tf.test.is_gpu_available()}")
-
-    dataset = "omniglot"
-    background_data, evaluation_data = load_omniglot(dataset, verbose=1)
-    background_training_data, evaluation_training_data, evaluation_test_data, \
-    background_training_data_15, background_training_data_5 = get_data_by_classes(background_data, evaluation_data, sort=sort_samples)
-
-    classification_parameters = {
-        "meta_learning_rate": 1e-4,
-        "inner_learning_rate": 0.03,
-        "loss_function": tf.losses.SparseCategoricalCrossentropy(from_logits=True),
-        "online_optimizer": tf.optimizers.SGD,
-        "online_learning_rate": 0.001,
-        "meta_optimizer": tf.optimizers.Adam
-    }
+    _, evaluation_data = load_omniglot(verbose=1)
+    evaluation_training_data, evaluation_test_data = get_eval_data_by_classes(evaluation_data, sort=sort_samples)
 
     current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 

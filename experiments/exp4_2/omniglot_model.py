@@ -31,31 +31,41 @@ def mrcl_omniglot(classes=964, hidden_units_per_layer=300):
     return rln, tln
 
 
-def get_data_by_classes(background_data, evaluation_data, sort=True):
+def get_background_data_by_classes(background_data, sort=True):
     if sort:
         background_data = np.array(sorted(list(tfds.as_numpy(background_data)), key=itemgetter('label')))
-        evaluation_data = np.array(sorted(list(tfds.as_numpy(evaluation_data)), key=itemgetter('label')))
     else:
         background_data = np.array(list(tfds.as_numpy(background_data)))
-        evaluation_data = np.array(list(tfds.as_numpy(evaluation_data)))
+        # TODO: maybe code below this is redundant in this case!
 
     background_training_data = []
     background_training_data_15 = []
     background_training_data_5 = []
-    evaluation_training_data = []
-    evaluation_test_data = []
-
-    evaluation_number_of_classes = int(evaluation_data.shape[0] / 20)
     background_number_of_classes = int(background_data.shape[0] / 20)
-    for i in range(evaluation_number_of_classes):
-        evaluation_training_data.append(evaluation_data[i * 20:i * 20 + 15])
-        evaluation_test_data.append(evaluation_data[i * 20 + 15:(i + 1) * 20])
 
     for i in range(background_number_of_classes):
         background_training_data.append(background_data[i * 20:(i + 1) * 20])
         background_training_data_15.append(background_data[i * 20:i * 20 + 15])
         background_training_data_5.append(background_data[i * 20 + 15:(i + 1) * 20])
-    return background_training_data, evaluation_training_data, evaluation_test_data, background_training_data_15, background_training_data_5
+
+    return background_training_data, background_training_data_15, background_training_data_5
+
+
+def get_eval_data_by_classes(evaluation_data, sort=True):
+    if sort:
+        evaluation_data = np.array(sorted(list(tfds.as_numpy(evaluation_data)), key=itemgetter('label')))
+    else:
+        evaluation_data = np.array(list(tfds.as_numpy(evaluation_data)))
+        # TODO: maybe code below this is redundant in this case!
+
+    evaluation_training_data = []
+    evaluation_test_data = []
+    evaluation_number_of_classes = int(evaluation_data.shape[0] / 20)
+    for i in range(evaluation_number_of_classes):
+        evaluation_training_data.append(evaluation_data[i * 20:i * 20 + 15])
+        evaluation_test_data.append(evaluation_data[i * 20 + 15:(i + 1) * 20])
+
+    return evaluation_training_data, evaluation_test_data
 
 
 def partition_into_disjoint(data):

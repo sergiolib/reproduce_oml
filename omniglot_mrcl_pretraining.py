@@ -1,40 +1,24 @@
 import tensorflow as tf
 import datetime
 import numpy as np
-from experiments.exp4_2.omniglot_model import mrcl_omniglot, get_data_by_classes, \
+
+from experiments.exp4_2.omniglot_model import mrcl_omniglot, get_background_data_by_classes, \
     partition_into_disjoint, pretrain_classification_mrcl, sample_trajectory, sample_random, sample_random_10_classes
 from datasets.tf_datasets import load_omniglot
 from experiments.training import save_models
+from parameters import classification_parameters
 
 
 def pretrain(sort_samples=True, model_name="mrcl"):
     print(f"GPU is available: {tf.test.is_gpu_available()}")
 
-    dataset = "omniglot"
-    background_data, evaluation_data = load_omniglot(dataset, verbose=1)
-    background_training_data, evaluation_training_data, evaluation_test_data, _, _ = get_data_by_classes(background_data, evaluation_data, sort=sort_samples)
-
-    assert len(evaluation_training_data) == 659
-    assert len(evaluation_test_data) == 659
-    assert len(background_training_data) == 964
-
-    assert evaluation_training_data[0].shape[0] == 15
-    assert evaluation_test_data[0].shape[0] == 5
-    assert background_training_data[0].shape[0] == 20
-
+    background_data, _ = load_omniglot(verbose=1)
+    background_training_data, _, _ = get_background_data_by_classes(background_data, sort=sort_samples)
     s_learn, s_remember = partition_into_disjoint(background_training_data)
 
     rln, tln = mrcl_omniglot()
     print(rln.summary())
     print(tln.summary())
-
-    classification_parameters = {
-        "meta_learning_rate": 1e-4,
-        "inner_learning_rate": 0.03,
-        "loss_function": tf.losses.SparseCategoricalCrossentropy(from_logits=True),
-        "online_optimizer": tf.optimizers.SGD,
-        "meta_optimizer": tf.optimizers.Adam
-    }
 
     t = range(20000)
     tasks = None
