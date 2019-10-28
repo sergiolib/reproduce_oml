@@ -25,7 +25,7 @@ def run(results_folder="mrcl_omniglot_eval_results", load_saved="rln_pretraining
 
     classification_parameters = {
         "meta_learning_rate": 1e-4,
-        "inner_learning_rate": 0.03,
+        "inner_learning_rate": 1e-3,
         "loss_function": tf.losses.SparseCategoricalCrossentropy(from_logits=True),
         "online_optimizer": tf.optimizers.SGD,
         "online_learning_rate": 0.001,
@@ -66,7 +66,7 @@ def run_scratch():
     Learn MRCL online without any pre-training
     """
 
-    results_folder = "scratch_omniglot_results"
+    results_folder = "scratch_omniglot_results_inner_lr_1e3"
 
     num_gb_to_use = 8
 
