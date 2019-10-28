@@ -8,7 +8,7 @@ from experiments.training import copy_parameters
 def mrcl_omniglot_rln(inputs, n_layers=6, filters=256, strides=[2, 1, 2, 1, 2, 2]):
     h = inputs
     for i in range(n_layers):
-        h = tf.keras.layers.Conv2D(filters, (3, 3), activation='relu', input_shape=(84, 84, 1), strides=strides[i])(h)
+        h = tf.keras.layers.Conv2D(filters, (3, 3), activation='relu', input_shape=(84, 84, 1), strides=strides[i], kernel_initializer="he_normal")(h)
     h = tf.keras.layers.Flatten()(h)
     return h
 
@@ -16,17 +16,17 @@ def mrcl_omniglot_rln(inputs, n_layers=6, filters=256, strides=[2, 1, 2, 1, 2, 2
 def mrcl_omniglot_tln(inputs, n_layers=2, hidden_units_per_layer=300, output=964):
     y = inputs
     for i in range(n_layers - 1):
-        y = tf.keras.layers.Dense(hidden_units_per_layer, activation='relu')(y)
-    y = tf.keras.layers.Dense(output)(y)
+        y = tf.keras.layers.Dense(hidden_units_per_layer, activation='relu', kernel_initializer="he_normal")(y)
+    y = tf.keras.layers.Dense(output, kernel_initializer="he_normal")(y)
     return y
 
 
-def mrcl_omniglot(classes=964):
+def mrcl_omniglot(classes=964, hidden_units_per_layer=300):
     input_rln = tf.keras.Input(shape=(84, 84, 1))
     input_tln = tf.keras.Input(shape=3 * 3 * 256)
     h = mrcl_omniglot_rln(input_rln)
     rln = tf.keras.Model(inputs=input_rln, outputs=h)
-    y = mrcl_omniglot_tln(input_tln, output=classes)
+    y = mrcl_omniglot_tln(input_tln, output=classes, hidden_units_per_layer=hidden_units_per_layer)
     tln = tf.keras.Model(inputs=input_tln, outputs=y)
     return rln, tln
 
@@ -145,10 +145,9 @@ def compute_loss(x, y, rln, tln, classification_parameters):
     return loss, output
 
 
-def evaluate_classification_mrcl(training_data, testing_data, rln, tln, classification_parameters):
+def evaluate_classification_mrcl(training_data, testing_data, rln, tln, number_of_classes, classification_parameters):
     all_classes = list(range(len(training_data)))
-    classes_to_use = np.random.choice(all_classes, 200)
-    seen_classes = 0
+    classes_to_use = np.random.choice(all_classes, number_of_classes)
 
     x_training = []
     y_training = []
@@ -171,47 +170,37 @@ def evaluate_classification_mrcl(training_data, testing_data, rln, tln, classifi
     results = []
 
     print(f"Start training with lr: {classification_parameters['online_learning_rate']}")
-    for class_id in range(200):
-        seen_classes = seen_classes + 1
-        #for m in range((seen_classes - 1) * 15, seen_classes * 15):
+    for m in range(x_training.shape[0]):
         with tf.GradientTape() as tape:
-            #loss, _ = compute_loss(x_training[m], y_training[m], rln, tln, classification_parameters)
-            loss, _ = compute_loss(x_training[(seen_classes - 1) * 15:seen_classes * 15],
-                               y_training[(seen_classes - 1) * 15:seen_classes * 15], rln, tln,
-                               classification_parameters)
+            loss, _ = compute_loss(x_training[m], y_training[m], rln, tln, classification_parameters)
         gradient_tln = tape.gradient(loss, tln.trainable_variables)
         classification_parameters['online_optimizer'](
             learning_rate=classification_parameters['online_learning_rate']).apply_gradients(
             zip(gradient_tln, tln.trainable_variables))
 
-        x_training_all = x_training[:seen_classes * 15]
-        y_training_all = y_training[:seen_classes * 15]
-        data = tf.data.Dataset.from_tensor_slices((x_training_all, y_training_all)).batch(256)
-        total_correct = 0
-        for x, y in data:
-            loss, output = compute_loss(x, y, rln, tln, classification_parameters)
-            after_softmax = tf.nn.softmax(output, axis=1)
-            correct_prediction = tf.equal(tf.cast(tf.argmax(after_softmax, axis=1), tf.int32), y)
-            total_correct = total_correct + tf.reduce_sum(tf.cast(correct_prediction, tf.float32))
-        train_accuracy = total_correct/(seen_classes * 15)
+    data = tf.data.Dataset.from_tensor_slices((x_training, y_training)).batch(256)
+    total_correct = 0
+    for x, y in data:
+        loss, output = compute_loss(x, y, rln, tln, classification_parameters)
+        after_softmax = tf.nn.softmax(output, axis=1)
+        correct_prediction = tf.equal(tf.cast(tf.argmax(after_softmax, axis=1), tf.int32), y)
+        total_correct = total_correct + tf.reduce_sum(tf.cast(correct_prediction, tf.float32))
+    train_accuracy = total_correct/x_training.shape[0]
 
-        x_testing_all = x_testing[:seen_classes * 5]
-        y_testing_all = y_testing[:seen_classes * 5]
-        data = tf.data.Dataset.from_tensor_slices((x_testing_all, y_testing_all)).batch(256)
-        total_correct = 0
-        for x, y in data:
-            loss, output = compute_loss(x, y, rln, tln, classification_parameters)
-            after_softmax = tf.nn.softmax(output, axis=1)
-            correct_prediction = tf.equal(tf.cast(tf.argmax(after_softmax, axis=1), tf.int32), y)
-            total_correct = total_correct + tf.reduce_sum(tf.cast(correct_prediction, tf.float32))
-        test_accuracy = total_correct/(seen_classes * 15)
+    data = tf.data.Dataset.from_tensor_slices((x_testing, y_testing)).batch(256)
+    total_correct = 0
+    for x, y in data:
+        loss, output = compute_loss(x, y, rln, tln, classification_parameters)
+        after_softmax = tf.nn.softmax(output, axis=1)
+        correct_prediction = tf.equal(tf.cast(tf.argmax(after_softmax, axis=1), tf.int32), y)
+        total_correct = total_correct + tf.reduce_sum(tf.cast(correct_prediction, tf.float32))
+    test_accuracy = total_correct/x_testing.shape[0]
 
-        results.append({"number_of_classes_seen": seen_classes,
-                        "test_accuracy": str(test_accuracy.numpy()),
-                        "train_accuracy": str(train_accuracy.numpy())})
+    results.append({"number_of_classes_seen": number_of_classes,
+                    "test_accuracy": str(test_accuracy.numpy()),
+                    "train_accuracy": str(train_accuracy.numpy())})
 
-        if (class_id+1) % 50 == 0:
-            print(f"Class {class_id}, test accuracy {test_accuracy.numpy()},  train accuracy {train_accuracy.numpy()}")
+    print(f"Class {number_of_classes}, test accuracy {test_accuracy.numpy()},  train accuracy {train_accuracy.numpy()}")
 
     return results
 
