@@ -25,14 +25,14 @@ argument_parser.add_argument("--batch_size_evaluation", default=8, type=int,
                              help="Batch size for evaluation stage training")
 argument_parser.add_argument("--tests", default=50, type=int,
                              help="Times to test and get results / number of random trajectories")
-argument_parser.add_argument("--model_file_rln", default="saved_models/final_model_rln.tf", type=str,
+argument_parser.add_argument("--model_file_rln", default="saved_models/pt_lr3e-06_rln6_tln2_rln.tf", type=str,
                              help="Model file for the rln")
-argument_parser.add_argument("--model_file_tln", default="saved_models/final_model_tln.tf", type=str,
+argument_parser.add_argument("--model_file_tln", default="saved_models/pt_lr3e-06_rln6_tln2_tln.tf", type=str,
                              help="Model file for the tln")
 argument_parser.add_argument("--learning_rates", nargs="+",
-                             default=[0.003, 0.001, 0.0003, 0.0001, 0.00003, 0.00001, 0.000003, 0.000001],
+                             default=0.000003,
                              type=float, help="Model file for the tln")
-argument_parser.add_argument("--results_file", default="evaluation_results.json", type=str,
+argument_parser.add_argument("--results_dir", default="./pt_isw_results/", type=str,
                              help="Evaluation results file")
 argument_parser.add_argument("--resetting_last_layer", default=False, type=bool,
                              help="Reinitialization of the last layer of the TLN")
@@ -71,8 +71,10 @@ for trajectory in tqdm.trange(args.tests):
     x_train = tf.convert_to_tensor(x_train, dtype=tf.float32)
     y_train = tf.convert_to_tensor(y_train, dtype=tf.float32)
 
+    learning_rates = args.learning_rates if type(args.learning_rates) is list else [args.learning_rates]
+
     # Continual Regression Experiment (Figure 3)
-    for lr in tqdm.tqdm(args.learning_rates, leave=False):
+    for lr in tqdm.tqdm(learning_rates, leave=False):
         rln = tf.keras.models.load_model(args.model_file_rln)
         tln = tf.keras.models.load_model(args.model_file_tln)
 
@@ -90,7 +92,7 @@ for trajectory in tqdm.trange(args.tests):
                                      x_test=x_val, y_test=y_val,
                                      rln=rln, tln=tln, optimizer=optimizer,
                                      loss_function=loss_fun, batch_size=args.batch_size_evaluation)
-        all_results[trajectory][lr] = results
 
-
-json.dump(all_results, open(args.results_file, "w"))
+        location = os.path.join(args.results_dir, f"{trajectory}/", f"{lr}.json")
+        os.makedirs(os.path.dirname(location), exist_ok=True)
+        json.dump(results, open(location, "w"))

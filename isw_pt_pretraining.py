@@ -102,10 +102,9 @@ for layers_rln, lr in gen:
             if previous_val_loss - val_loss < 1e-3:
                 val_loss_counts += 1
                 if val_loss_counts == 1:
-                    p.save_model(f"final_lr{lr}_rln{layers_rln}_tln{layers_tln}")
+                    p.save_model(f"pt_lr{lr}_rln{layers_rln}_tln{layers_tln}")
                 elif val_loss_counts >= 6:
                     break
             else:
                 previous_val_loss = float(val_loss)
                 val_loss_counts = 0
-
