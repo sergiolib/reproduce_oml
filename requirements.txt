@@ -1,3 +1,4 @@
+tqdm
 numpy==1.17.2
 tensorflow-datasets==1.2.0
 tensorflow-gpu==2.0.0

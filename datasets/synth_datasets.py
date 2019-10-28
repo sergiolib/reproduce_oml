@@ -1,8 +1,8 @@
 """ Loader file for synthetic data sets"""
 
-from numpy import random as np_random, zeros, sin as np_sin
+import numpy as np
 from math import pi
-from random import sample
+import random
 
 # Constant Sine values as defined in section 4.1
 amp_min = 0.1
@@ -21,13 +21,14 @@ def gen_tasks(number_of_tasks):
     :return: amplitude and phase generated samples for each possible task
     :rtype: dict
     """
-    return {"amplitude": np_random.uniform(amp_min, amp_max, size=number_of_tasks),
-            "phase": np_random.uniform(phase_min, phase_max, size=number_of_tasks)}
+    return {"amplitude": np.random.uniform(amp_min, amp_max, size=number_of_tasks),
+            "phase": np.random.uniform(phase_min, phase_max, size=number_of_tasks)}
 
 
-def gen_sine_data(tasks, n_functions=10, sample_length=32, repetitions=40):
+def gen_sine_data(tasks, n_functions=10, sample_length=32, repetitions=40, seed=None):
     """
     Generate synthetic Incremental Sine Waves as defined in section 4.1
+    :param seed: Seed
     :param tasks: amplitude and phase generated samples for each possible task
     :type tasks: dict
     :param n_functions: number of functions to use (default is 10 as defined in the paper)
@@ -42,28 +43,30 @@ def gen_sine_data(tasks, n_functions=10, sample_length=32, repetitions=40):
            numpy.ndarray (n_functions x sample_length x dim),
            numpy.ndarray (n_functions x sample_length)
     """
-    tasks_subsample = sample(list(zip(tasks["amplitude"], tasks["phase"])), n_functions)  # tuples: (amp, phase)
+    random.seed(seed)
+    np.random.seed(seed)
+    tasks_subsample = random.sample(list(zip(tasks["amplitude"], tasks["phase"])), n_functions)  # tuples: (amp, phase)
     amplitude = [task_parameters[0] for task_parameters in tasks_subsample]
     phase = [s[1] for s in tasks_subsample]
 
     # Sample z used as inputs of the sine functions
-    list_of_z_traj = np_random.uniform(z_min, z_max, size=(n_functions, repetitions, sample_length))
-    list_of_z_rand = np_random.uniform(z_min, z_max, size=(n_functions, sample_length))
+    list_of_z_traj = np.random.uniform(z_min, z_max, size=(n_functions, repetitions, sample_length))
+    list_of_z_rand = np.random.uniform(z_min, z_max, size=(n_functions, sample_length))
 
     # Initialize input arrays
-    x_traj = zeros(shape=(n_functions, repetitions, sample_length, n_functions + 1))
-    x_rand = zeros(shape=(n_functions, sample_length, n_functions + 1))
-    y_traj = zeros(shape=(n_functions, repetitions, sample_length))
-    y_rand = zeros(shape=(n_functions, sample_length))
+    x_traj = np.zeros(shape=(n_functions, repetitions, sample_length, n_functions + 1))
+    x_rand = np.zeros(shape=(n_functions, sample_length, n_functions + 1))
+    y_traj = np.zeros(shape=(n_functions, repetitions, sample_length))
+    y_rand = np.zeros(shape=(n_functions, sample_length))
 
     # For every function, sample "repetitions" instances of length "sample_length"
     for ind in range(n_functions):
         for repetition in range(repetitions):
-            y_traj[ind, repetition, :] = np_sin(list_of_z_traj[ind, repetition] + phase[ind]) * amplitude[ind]
+            y_traj[ind, repetition, :] = np.sin(list_of_z_traj[ind, repetition] + phase[ind]) * amplitude[ind]
             x_traj[ind, repetition, :, 0] = list_of_z_traj[ind, repetition]
             x_traj[ind, repetition, :, 1 + ind] = 1
 
-        y_rand[ind, :] = np_sin(list_of_z_rand[ind, 0] + phase[ind]) * amplitude[ind]
+        y_rand[ind, :] = np.sin(list_of_z_rand[ind, 0] + phase[ind]) * amplitude[ind]
         x_rand[ind, :, 0] = list_of_z_rand[ind]
         x_rand[ind, :, 1 + ind] = 1
 
