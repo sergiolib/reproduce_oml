@@ -58,7 +58,7 @@ for point in points:
     test_accuracy_results = []
     train_accuracy_results = []
 
-    print(f"Starting 50 iterations of evaluation testing with learning rate {train_lr}.")
+    print(f"Starting 50 iterations of evaluation testing with learning rate {test_lr}.")
     for _ in range(50):
         classification_parameters["online_learning_rate"] = test_lr
         rln, tln = mrcl_omniglot(point)
