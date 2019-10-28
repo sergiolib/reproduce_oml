@@ -31,9 +31,10 @@ def mrcl_omniglot(classes=964):
     return rln, tln
 
 
-def get_data_by_classes(background_data, evaluation_data):
-    background_data = np.array(sorted(list(tfds.as_numpy(background_data)), key=itemgetter('label')))
-    evaluation_data = np.array(sorted(list(tfds.as_numpy(evaluation_data)), key=itemgetter('label')))
+def get_data_by_classes(background_data, evaluation_data, sort=True):
+    if sort:
+        background_data = np.array(sorted(list(tfds.as_numpy(background_data)), key=itemgetter('label')))
+        evaluation_data = np.array(sorted(list(tfds.as_numpy(evaluation_data)), key=itemgetter('label')))
     background_training_data = []
     background_training_data_15 = []
     background_training_data_5 = []
