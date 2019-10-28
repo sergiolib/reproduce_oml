@@ -63,7 +63,7 @@ for tln_layers, rln_layers, lr in gen:
     train_log_dir = f'logs/pt_isw_lr{lr}_rln{rln_layers}_tln{tln_layers}/' + current_time + '/pre_train'
     makedirs(train_log_dir, exist_ok=True)
     train_summary_writer = tf.summary.create_file_writer(train_log_dir)
-    p.build_model(n_layers_rln=rln_layers, n_layers_tln=tln_layers, seed=0)
+    p.build_isw_model(n_layers_rln=rln_layers, n_layers_tln=tln_layers, seed=0)
     val_loss_counts = 0
     previous_val_loss = p.compute_loss_no_training(x_val, y_val)
     val_loss = None
