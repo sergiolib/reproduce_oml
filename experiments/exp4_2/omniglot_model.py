@@ -36,8 +36,8 @@ def get_data_by_classes(background_data, evaluation_data, sort=True):
         background_data = np.array(sorted(list(tfds.as_numpy(background_data)), key=itemgetter('label')))
         evaluation_data = np.array(sorted(list(tfds.as_numpy(evaluation_data)), key=itemgetter('label')))
     else:
-        background_data = tfds.as_numpy(background_data)
-        evaluation_data = tfds.as_numpy(evaluation_data)
+        background_data = np.array(list(tfds.as_numpy(background_data)))
+        evaluation_data = np.array(list(tfds.as_numpy(evaluation_data)))
 
     background_training_data = []
     background_training_data_15 = []
