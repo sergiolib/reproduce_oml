@@ -101,7 +101,7 @@ best_lr, best_loss = sorted(final_losses, key=lambda x: x[1])[0]
 # Run many times with best_lr
 optimizer = tf.keras.optimizers.SGD(learning_rate=best_lr)
 all_results = []
-for i in tqdm.tqdm(args.tests):
+for i in tqdm.trange(args.tests):
     # Continual Regression Experiment (Figure 3)
     x_train, y_train, _, _ = gen_sine_data(tasks,
                                            args.n_functions,
