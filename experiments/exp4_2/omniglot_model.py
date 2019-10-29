@@ -5,7 +5,7 @@ import numpy as np
 from experiments.training import copy_parameters
 
 
-def mrcl_omniglot_rln(inputs, n_layers=6, filters=256, strides=[2, 1, 2, 1, 2, 2]):
+def mrcl_omniglot_rln(inputs, n_layers, filters, strides=[2, 1, 2, 1, 2, 2]):
     h = inputs
     for i in range(n_layers):
         h = tf.keras.layers.Conv2D(filters, (3, 3), activation='relu', input_shape=(84, 84, 1), strides=strides[i], kernel_initializer="he_normal")(h)
@@ -13,7 +13,7 @@ def mrcl_omniglot_rln(inputs, n_layers=6, filters=256, strides=[2, 1, 2, 1, 2, 2
     return h
 
 
-def mrcl_omniglot_tln(inputs, n_layers=2, hidden_units_per_layer=300, output=964):
+def mrcl_omniglot_tln(inputs, n_layers, hidden_units_per_layer, output=964):
     y = inputs
     for i in range(n_layers - 1):
         y = tf.keras.layers.Dense(hidden_units_per_layer, activation='relu', kernel_initializer="he_normal")(y)
@@ -21,12 +21,12 @@ def mrcl_omniglot_tln(inputs, n_layers=2, hidden_units_per_layer=300, output=964
     return y
 
 
-def mrcl_omniglot(classes=964, hidden_units_per_layer=300):
+def mrcl_omniglot(rln_layers=6, tln_layers=2, filters=256, hidden_units=300, classes=964):
     input_rln = tf.keras.Input(shape=(84, 84, 1))
     input_tln = tf.keras.Input(shape=3 * 3 * 256)
-    h = mrcl_omniglot_rln(input_rln)
+    h = mrcl_omniglot_rln(input_rln, rln_layers, filters)
     rln = tf.keras.Model(inputs=input_rln, outputs=h)
-    y = mrcl_omniglot_tln(input_tln, output=classes, hidden_units_per_layer=hidden_units_per_layer)
+    y = mrcl_omniglot_tln(input_tln, tln_layers, hidden_units, output=classes)
     tln = tf.keras.Model(inputs=input_tln, outputs=y)
     return rln, tln
 
