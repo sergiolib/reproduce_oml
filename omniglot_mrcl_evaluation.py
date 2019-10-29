@@ -19,17 +19,17 @@ def evaluate(model_name):
     except IOError:
         os.mkdir(save_dir)
 
-    rln_saved = tf.keras.models.load_model("saved_models_300_nodes/rln_" + model_name)
-    tln_saved = tf.keras.models.load_model("saved_models_300_nodes/tln_" + model_name)
-
     points = [10, 50, 75, 100, 150, 200]
     for point in points:
         _, original_tln = mrcl_omniglot(point)
-        tln_weights = [tln_saved.get_weights()[0], tln_saved.get_weights()[1], original_tln.get_weights()[2], original_tln.get_weights()[3]]
         lrs = [0.3, 0.1, 0.03, 0.01, 0.003, 0.001, 0.0003, 0.0001, 0.00003, 0.00001]
         test_accuracy_results = []
         train_accuracy_results = []
         for lr in lrs:
+            tf.keras.backend.clear_session()
+            rln_saved = tf.keras.models.load_model("saved_models_300_nodes/rln_" + model_name)
+            tln_saved = tf.keras.models.load_model("saved_models_300_nodes/tln_" + model_name)
+            tln_weights = [tln_saved.get_weights()[0], tln_saved.get_weights()[1], original_tln.get_weights()[2], original_tln.get_weights()[3]]
             classification_parameters["online_learning_rate"] = lr
             rln, tln = mrcl_omniglot(point)
             tln.set_weights(tln_weights)
