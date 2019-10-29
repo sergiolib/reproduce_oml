@@ -57,7 +57,7 @@ learning_rate = args.learning_rate if type(args.learning_rate) is list else [arg
 
 # Find a good learning rate from the given ones to iterate many times on
 final_losses = []
-for lr in tqdm.tqdm(learning_rates):
+for lr in tqdm.tqdm(learning_rate):
     # Continual Regression Experiment (Figure 3)
     x_train, y_train, _, _ = gen_sine_data(tasks,
                                            args.n_functions,
