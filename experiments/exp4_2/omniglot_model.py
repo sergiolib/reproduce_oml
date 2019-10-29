@@ -105,14 +105,14 @@ def sample_random_10_classes(s_remember, data):
     return tf.convert_to_tensor(x_rand), tf.convert_to_tensor(y_rand)
 
 
-def pretrain_classification_mrcl(x_traj, y_traj, x_rand, y_rand, rln, tln, classification_parameters):
+def pretrain_classification_mrcl(x_traj, y_traj, x_rand, y_rand, rln, tln, tln_initial, classification_parameters):
     # Random reinitialization of last layer
     w = tln.layers[-1].weights[0]
     new_w = tln.layers[-1].kernel_initializer(shape=w.shape)
     tln.layers[-1].weights[0].assign(new_w)
 
     # Clone tln to preserve initial weights
-    tln_initial = tf.keras.models.clone_model(tln)
+    copy_parameters(tln, tln_initial)
 
     x_meta = tf.concat([x_rand, x_traj], axis=0)
     y_meta = tf.concat([y_rand, y_traj], axis=0)

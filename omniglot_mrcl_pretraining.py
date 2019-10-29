@@ -27,10 +27,13 @@ def pretrain(sort_samples=True, model_name="mrcl"):
     train_log_dir = 'logs/classification/pretraining/omniglot/mrcl/gradient_tape/' + current_time + '/train'
     train_summary_writer = tf.summary.create_file_writer(train_log_dir)
 
+    tln_initial = tf.keras.models.clone_model(tln)
+
     for epoch, v in enumerate(t):
         x_rand, y_rand = sample_random_10_classes(s_remember, background_training_data)
         x_traj, y_traj = sample_trajectory(s_learn, background_training_data)
-        loss = pretrain_classification_mrcl(x_traj, y_traj, x_rand, y_rand, rln, tln, classification_parameters)
+
+        loss = pretrain_classification_mrcl(x_traj, y_traj, x_rand, y_rand, rln, tln, tln_initial, classification_parameters)
 
         # Check metrics
         rep = rln(x_rand)
