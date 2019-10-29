@@ -28,8 +28,7 @@ def train_and_evaluate(x_train, y_train, x_test, y_test, rln, tln, optimizer, lo
             i += 1
         output_loss /= i
 
-        results[cls] = {"loss": np.asscalar(np.array(output_loss)),
-                        "number_of_classes_seen": cls + 1}
+        results[cls + 1] = np.asscalar(np.array(output_loss))
 
     return results
 
