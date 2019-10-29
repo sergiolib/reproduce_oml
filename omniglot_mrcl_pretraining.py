@@ -20,7 +20,7 @@ def pretrain(sort_samples=True, model_name="mrcl"):
     print(rln.summary())
     print(tln.summary())
 
-    t = range(20000)
+    t = range(15000)
     tasks = None
 
     current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")

@@ -36,7 +36,7 @@ def get_background_data_by_classes(background_data, sort=True):
         background_data = np.array(sorted(list(tfds.as_numpy(background_data)), key=itemgetter('label')))
     else:
         background_data = np.array(list(tfds.as_numpy(background_data)))
-        # TODO: maybe code below this is redundant in this case!
+        np.random.shuffle(background_data)
 
     background_training_data = []
     background_training_data_15 = []
@@ -51,13 +51,9 @@ def get_background_data_by_classes(background_data, sort=True):
     return background_training_data, background_training_data_15, background_training_data_5
 
 
-def get_eval_data_by_classes(evaluation_data, sort=True):
-    if sort:
-        evaluation_data = np.array(sorted(list(tfds.as_numpy(evaluation_data)), key=itemgetter('label')))
-    else:
-        evaluation_data = np.array(list(tfds.as_numpy(evaluation_data)))
-        # TODO: maybe code below this is redundant in this case!
-
+def get_eval_data_by_classes(evaluation_data):
+    evaluation_data = np.array(sorted(list(tfds.as_numpy(evaluation_data)), key=itemgetter('label')))
+   
     evaluation_training_data = []
     evaluation_test_data = []
     evaluation_number_of_classes = int(evaluation_data.shape[0] / 20)
