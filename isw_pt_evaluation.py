@@ -155,7 +155,7 @@ for i in tqdm.trange(args.tests):
                                  loss_function=loss_fun,
                                  batch_size=args.batch_size_evaluation)
 
-    all_results.append((lr, results[args.n_functions]))
+    all_results.append(results)
 
 location = os.path.join(args.results_dir, f"basic_pt_eval_{lr}.json")
 os.makedirs(os.path.dirname(location), exist_ok=True)
