@@ -1,5 +1,5 @@
 import datetime
-from os import makedirs
+import os
 import tensorflow as tf
 import tqdm
 import numpy as np
@@ -46,7 +46,7 @@ loss_fun = tf.keras.losses.MeanSquaredError()
 # Create logs directories
 current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 train_log_dir = 'logs/pt_isw/' + current_time + '/eval'
-makedirs(train_log_dir, exist_ok=True)
+os.makedirs(train_log_dir, exist_ok=True)
 
 _, _, x_val, y_val = gen_sine_data(test_tasks,
                                    args.n_functions,
