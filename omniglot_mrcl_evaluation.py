@@ -13,11 +13,11 @@ def evaluate(sort_samples=True, model_name="pretraining_mrcl_11999_omniglot.tf")
 
     _, evaluation_data = load_omniglot(verbose=1)
     evaluation_training_data, evaluation_test_data = get_eval_data_by_classes(evaluation_data, sort=sort_samples)
-
+    save_dir = "results/omniglot/mrcl"
     try:
-        os.stat("results/omniglot/mrcl")
+        os.stat(save_dir)
     except IOError:
-        os.mkdir("results/omniglot/mrcl")
+        os.mkdir(save_dir)
 
     rln_saved = tf.keras.models.load_model("saved_models_300_nodes/rln_" + model_name)
     tln_saved = tf.keras.models.load_model("saved_models_300_nodes/tln_" + model_name)
@@ -56,7 +56,7 @@ def evaluate(sort_samples=True, model_name="pretraining_mrcl_11999_omniglot.tf")
             test_accuracy, _ = evaluate_classification_mrcl(evaluation_training_data, evaluation_test_data, rln, tln,
                                                             point, classification_parameters)
             test_accuracy_results.append(str(test_accuracy))
-        with open(f"evaluation_results/mrcl_omniglot_testing_{point}.json",
+        with open(f"{save_dir}/mrcl_omniglot_testing_{point}.json",
                   'w') as f:  # writing JSON object
             json.dump(test_accuracy_results, f)
 
@@ -69,7 +69,7 @@ def evaluate(sort_samples=True, model_name="pretraining_mrcl_11999_omniglot.tf")
             _, train_accuracy = evaluate_classification_mrcl(evaluation_training_data, evaluation_test_data, rln,
                                                              tln, point, classification_parameters)
             train_accuracy_results.append(str(train_accuracy))
-        with open(f"evaluation_results/mrcl_omniglot_training_{point}.json",
+        with open(f"{save_dir}/mrcl_omniglot_training_{point}.json",
                   'w') as f:  # writing JSON object
             json.dump(train_accuracy_results, f)
 
