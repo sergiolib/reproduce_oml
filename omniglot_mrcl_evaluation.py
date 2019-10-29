@@ -32,7 +32,7 @@ def evaluate(model_name, oracle=True):
         for lr in lrs:
             tf.keras.backend.clear_session()
 
-            _, original_tln = mrcl_omniglot(point)
+            _, original_tln = mrcl_omniglot(classes=point)
             rln_saved = tf.keras.models.load_model("saved_models/rln_" + model_name)
             tln_saved = tf.keras.models.load_model("saved_models/tln_" + model_name)
 
