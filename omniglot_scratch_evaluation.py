@@ -17,7 +17,7 @@ current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 train_log_dir = 'logs/classification/gradient_tape/' + current_time + '/train'
 train_summary_writer = tf.summary.create_file_writer(train_log_dir)
 
-rln, tln = mrcl_omniglot(200)
+rln, tln = mrcl_omniglot(classes=200)
 
 try:
     os.stat("evaluation_results_scratch_omniglot")
@@ -26,13 +26,13 @@ except:
 
 points = [10, 50, 75, 100, 150, 200]
 for point in points:
-    original_rln, original_tln = mrcl_omniglot(point)
+    original_rln, original_tln = mrcl_omniglot(classes=point)
     lrs = [0.3, 0.1, 0.03, 0.01, 0.003, 0.001, 0.0003, 0.0001, 0.00003, 0.00001]
     test_accuracy_results = []
     train_accuracy_results = []
     for lr in lrs:
         classification_parameters["online_learning_rate"] = lr
-        rln, tln = mrcl_omniglot(point)
+        rln, tln = mrcl_omniglot(classes=point)
         tln.set_weights(original_tln.get_weights())
         rln.set_weights(original_rln.get_weights())
         test_accuracy, train_accuracy = evaluate_classification_mrcl(evaluation_training_data, evaluation_test_data,
@@ -51,7 +51,7 @@ for point in points:
     print(f"Starting 50 iterations of evaluation testing with learning rate {test_lr}.")
     for _ in range(50):
         classification_parameters["online_learning_rate"] = test_lr
-        rln, tln = mrcl_omniglot(point)
+        rln, tln = mrcl_omniglot(classes=point)
         tln.set_weights(original_tln.get_weights())
         rln.set_weights(original_rln.get_weights())
         test_accuracy, _ = evaluate_classification_mrcl(evaluation_training_data, evaluation_test_data, rln, tln, point,
@@ -65,7 +65,7 @@ for point in points:
     print(f"Starting 50 iterations of evaluation training with learning rate {train_lr}.")
     for _ in range(50):
         classification_parameters["online_learning_rate"] = train_lr
-        rln, tln = mrcl_omniglot(point)
+        rln, tln = mrcl_omniglot(classes=point)
         tln.set_weights(original_tln.get_weights())
         rln.set_weights(original_rln.get_weights())
         _, train_accuracy = evaluate_classification_mrcl(evaluation_training_data, evaluation_test_data, rln,
