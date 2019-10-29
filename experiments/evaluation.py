@@ -29,8 +29,8 @@ def train_and_evaluate(x_train, y_train, x_val, y_val, rln, tln, optimizer,
                                               tln.trainable_variables))
 
             # Validate with unseen data
-            x_val_classes_seen = x_val[cls]
-            y_val_classes_seen = y_val[cls]
+            x_val_classes_seen = tf.expand_dims(x_val[cls], 0)
+            y_val_classes_seen = tf.expand_dims(y_val[cls], 0)
 
             output_loss = 0
             i = 0
