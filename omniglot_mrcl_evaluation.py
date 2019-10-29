@@ -9,10 +9,10 @@ from datasets.tf_datasets import load_omniglot
 from parameters import classification_parameters
 
 
-def evaluate(sort_samples=True, model_name="pretraining_mrcl_11999_omniglot.tf"):
+def evaluate(model_name):
 
     _, evaluation_data = load_omniglot(verbose=1)
-    evaluation_training_data, evaluation_test_data = get_eval_data_by_classes(evaluation_data, sort=sort_samples)
+    evaluation_training_data, evaluation_test_data = get_eval_data_by_classes(evaluation_data)
     save_dir = "results/omniglot/mrcl"
     try:
         os.stat(save_dir)
@@ -73,4 +73,4 @@ def evaluate(sort_samples=True, model_name="pretraining_mrcl_11999_omniglot.tf")
                   'w') as f:  # writing JSON object
             json.dump(train_accuracy_results, f)
 
-evaluate(sort_samples=True, model_name="pretraining_mrcl_11999_omniglot.tf")
+# evaluate("pretraining_mrcl_11999_omniglot.tf")
