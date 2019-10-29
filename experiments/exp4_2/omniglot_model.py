@@ -53,8 +53,7 @@ def get_background_data_by_classes(background_data, sort=True):
 
 def get_eval_data_by_classes(evaluation_data):
     evaluation_data = np.array(sorted(list(tfds.as_numpy(evaluation_data)), key=itemgetter('label')))
-    evaluation_data = np.array(list(tfds.as_numpy(evaluation_data)))
-
+   
     evaluation_training_data = []
     evaluation_test_data = []
     evaluation_number_of_classes = int(evaluation_data.shape[0] / 20)
