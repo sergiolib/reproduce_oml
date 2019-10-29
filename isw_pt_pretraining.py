@@ -66,7 +66,7 @@ for layers_rln, lr in tqdm.tqdm(gen):
     train_summary_writer = tf.summary.create_file_writer(train_log_dir)
     tf.keras.backend.clear_session()
     p = PretrainingBaseline(tf.keras.losses.MeanSquaredError())
-    p.build_model(n_layers_rln=layers_rln, n_layers_tln=layers_tln, seed=0)
+    p.build_isw_model(n_layers_rln=layers_rln, n_layers_tln=layers_tln, seed=0)
     val_loss_counts = 0
     previous_val_loss = p.compute_loss(x_val, y_val)
     with train_summary_writer.as_default():
