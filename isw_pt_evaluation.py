@@ -29,9 +29,8 @@ argument_parser.add_argument("--model_file_rln", default="saved_models/pt_lr3e-0
                              help="Model file for the rln")
 argument_parser.add_argument("--model_file_tln", default="saved_models/pt_lr3e-06_rln6_tln2_tln.tf", type=str,
                              help="Model file for the tln")
-argument_parser.add_argument("--learning_rates", nargs="+",
-                             default=0.000003,
-                             type=float, help="Model file for the tln")
+argument_parser.add_argument("--learning_rate", nargs="+", default=0.000003,
+                             type=float, help="Learning rate(s) to try")
 argument_parser.add_argument("--results_dir", default="./results/basic_pt_isw/", type=str,
                              help="Evaluation results file")
 argument_parser.add_argument("--resetting_last_layer", default=True, type=bool,
@@ -54,47 +53,93 @@ _, _, x_val, y_val = gen_sine_data(test_tasks,
                                    args.repetitions)
 x_val = tf.convert_to_tensor(x_val, dtype=tf.float32)
 y_val = tf.convert_to_tensor(y_val, dtype=tf.float32)
-learning_rates = args.learning_rates if type(args.learning_rates) is list else [args.learning_rates]
-for lr in tqdm.tqdm(learning_rates, leave=False):
+learning_rate = args.learning_rate if type(args.learning_rate) is list else [args.learning_rate]
+
+# Find a good learning rate from the given ones to iterate many times on
+final_losses = []
+for lr in tqdm.tqdm(learning_rates):
     # Continual Regression Experiment (Figure 3)
-    lr_results = []
-    for trajectory in tqdm.trange(args.tests):
-        x_train, y_train, _, _ = gen_sine_data(tasks,
-                                               args.n_functions,
-                                               args.sample_length,
-                                               args.repetitions)
+    x_train, y_train, _, _ = gen_sine_data(tasks,
+                                           args.n_functions,
+                                           args.sample_length,
+                                           args.repetitions)
 
-        # Reshape for inputting to training method
-        x_train = np.transpose(x_train, (1, 2, 0, 3))
-        y_train = np.transpose(y_train, (1, 2, 0))
-        x_train = np.reshape(x_train, (args.repetitions * args.sample_length, args.n_functions, -1))
-        y_train = np.reshape(y_train, (args.repetitions * args.sample_length, args.n_functions))
-        x_train = np.transpose(x_train, (1, 0, 2))
-        y_train = np.transpose(y_train, (1, 0))
-        x_train = tf.convert_to_tensor(x_train, dtype=tf.float32)
-        y_train = tf.convert_to_tensor(y_train, dtype=tf.float32)
+    # Reshape for inputting to training method
+    x_train = np.transpose(x_train, (1, 2, 0, 3))
+    y_train = np.transpose(y_train, (1, 2, 0))
+    x_train = np.reshape(x_train, (args.repetitions * args.sample_length, args.n_functions, -1))
+    y_train = np.reshape(y_train, (args.repetitions * args.sample_length, args.n_functions))
+    x_train = np.transpose(x_train, (1, 0, 2))
+    y_train = np.transpose(y_train, (1, 0))
+    x_train = tf.convert_to_tensor(x_train, dtype=tf.float32)
+    y_train = tf.convert_to_tensor(y_train, dtype=tf.float32)
 
-        # Numpy -> Tensorflow
-        tf.keras.backend.clear_session()
-        rln = tf.keras.models.load_model(args.model_file_rln)
-        tln = tf.keras.models.load_model(args.model_file_tln)
+    # Numpy -> Tensorflow
+    tf.keras.backend.clear_session()
+    rln = tf.keras.models.load_model(args.model_file_rln)
+    tln = tf.keras.models.load_model(args.model_file_tln)
 
-        if args.resetting_last_layer:
-            # Random reinitialization of last layer
-            w = tln.layers[-1].weights[0]
-            b = tln.layers[-1].weights[1]
-            new_w = tf.keras.initializers.he_normal()(shape=w.shape)
-            w.assign(new_w)
-            new_b = tf.keras.initializers.zeros()(shape=b.shape)
-            b.assign(new_b)
+    if args.resetting_last_layer:
+        # Random reinitialization of last layer
+        w = tln.layers[-1].weights[0]
+        b = tln.layers[-1].weights[1]
+        new_w = tf.keras.initializers.he_normal()(shape=w.shape)
+        w.assign(new_w)
+        new_b = tf.keras.initializers.zeros()(shape=b.shape)
+        b.assign(new_b)
 
-        optimizer = tf.keras.optimizers.SGD(learning_rate=lr)
-        results = train_and_evaluate(x_train=x_train, y_train=y_train,
-                                     x_test=x_val, y_test=y_val,
-                                     rln=rln, tln=tln, optimizer=optimizer,
-                                     loss_function=loss_fun, batch_size=args.batch_size_evaluation)
-        lr_results.append(results)
+    optimizer = tf.keras.optimizers.SGD(learning_rate=lr)
+    results = train_and_evaluate(x_train=x_train, y_train=y_train,
+                                 x_test=x_val, y_test=y_val,
+                                 rln=rln, tln=tln, optimizer=optimizer,
+                                 loss_function=loss_fun, batch_size=args.batch_size_evaluation)
 
-    location = os.path.join(args.results_dir, f"basic_pt_eval_{lr}.json")
-    os.makedirs(os.path.dirname(location), exist_ok=True)
-    json.dump(results, open(location, "w"))
+    final_losses.append((lr, results[args.n_functions]))
+
+best_lr, best_loss = sorted(final_losses, key=lambda x: x[1])[0]
+
+# Run many times with best_lr
+lr_results.append(results)
+optimizer = tf.keras.optimizers.SGD(learning_rate=best_lr)
+all_results = []
+for i in tqdm.tqdm(args.tests):
+    # Continual Regression Experiment (Figure 3)
+    x_train, y_train, _, _ = gen_sine_data(tasks,
+                                           args.n_functions,
+                                           args.sample_length,
+                                           args.repetitions)
+
+    # Reshape for inputting to training method
+    x_train = np.transpose(x_train, (1, 2, 0, 3))
+    y_train = np.transpose(y_train, (1, 2, 0))
+    x_train = np.reshape(x_train, (args.repetitions * args.sample_length, args.n_functions, -1))
+    y_train = np.reshape(y_train, (args.repetitions * args.sample_length, args.n_functions))
+    x_train = np.transpose(x_train, (1, 0, 2))
+    y_train = np.transpose(y_train, (1, 0))
+    x_train = tf.convert_to_tensor(x_train, dtype=tf.float32)
+    y_train = tf.convert_to_tensor(y_train, dtype=tf.float32)
+
+    # Numpy -> Tensorflow
+    tf.keras.backend.clear_session()
+    rln = tf.keras.models.load_model(args.model_file_rln)
+    tln = tf.keras.models.load_model(args.model_file_tln)
+
+    if args.resetting_last_layer:
+        # Random reinitialization of last layer
+        w = tln.layers[-1].weights[0]
+        b = tln.layers[-1].weights[1]
+        new_w = tf.keras.initializers.he_normal()(shape=w.shape)
+        w.assign(new_w)
+        new_b = tf.keras.initializers.zeros()(shape=b.shape)
+        b.assign(new_b)
+
+    results = train_and_evaluate(x_train=x_train, y_train=y_train,
+                                 x_test=x_val, y_test=y_val,
+                                 rln=rln, tln=tln, optimizer=optimizer,
+                                 loss_function=loss_fun, batch_size=args.batch_size_evaluation)
+
+    all_results.append((lr, results[args.n_functions]))
+
+location = os.path.join(args.results_dir, f"basic_pt_eval_{lr}.json")
+os.makedirs(os.path.dirname(location), exist_ok=True)
+json.dump(results, open(location, "w"))
