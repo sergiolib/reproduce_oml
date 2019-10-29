@@ -1,5 +1,4 @@
 import tensorflow as tf
-import datetime
 import numpy as np
 import os
 import json
@@ -10,29 +9,30 @@ from datasets.tf_datasets import load_omniglot
 from parameters import classification_parameters
 
 
-def evaluate(sort_samples=True, model_name="rln_pretraining_mrcl_1900_omniglot.tf"):
+def evaluate(sort_samples=True, model_name="pretraining_mrcl_11999_omniglot.tf"):
 
     _, evaluation_data = load_omniglot(verbose=1)
     evaluation_training_data, evaluation_test_data = get_eval_data_by_classes(evaluation_data, sort=sort_samples)
 
-    current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-
-    rln_saved = tf.keras.models.load_model("saved_models_300_nodes/" + model_name)
     try:
-        os.stat("evaluation_results")
+        os.stat("results/omniglot/mrcl")
     except IOError:
-        os.mkdir("evaluation_results")
+        os.mkdir("results/omniglot/mrcl")
+
+    rln_saved = tf.keras.models.load_model("saved_models_300_nodes/rln_" + model_name)
+    tln_saved = tf.keras.models.load_model("saved_models_300_nodes/tln_" + model_name)
 
     points = [10, 50, 75, 100, 150, 200]
     for point in points:
         _, original_tln = mrcl_omniglot(point)
+        tln_weights = [tln_saved.get_weights()[0], tln_saved.get_weights()[1], original_tln.get_weights()[2], original_tln.get_weights()[3]]
         lrs = [0.3, 0.1, 0.03, 0.01, 0.003, 0.001, 0.0003, 0.0001, 0.00003, 0.00001]
         test_accuracy_results = []
         train_accuracy_results = []
         for lr in lrs:
             classification_parameters["online_learning_rate"] = lr
             rln, tln = mrcl_omniglot(point)
-            tln.set_weights(original_tln.get_weights())
+            tln.set_weights(tln_weights)
             rln.set_weights(rln_saved.get_weights())
             test_accuracy, train_accuracy = evaluate_classification_mrcl(evaluation_training_data, evaluation_test_data,
                                                                          rln, tln, point, classification_parameters)
@@ -73,4 +73,4 @@ def evaluate(sort_samples=True, model_name="rln_pretraining_mrcl_1900_omniglot.t
                   'w') as f:  # writing JSON object
             json.dump(train_accuracy_results, f)
 
-evaluate(sort_samples=True, model_name="rln_pretraining_mrcl_1900_omniglot.tf")
+evaluate(sort_samples=True, model_name="pretraining_mrcl_11999_omniglot.tf")
