@@ -75,8 +75,13 @@ current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 train_log_dir = 'logs/pt_isw/' + current_time + '/eval'
 os.makedirs(train_log_dir, exist_ok=True)
 
-_, _, x_val, y_val = gen_sine_data(test_tasks, args.n_functions,
-                                   args.sample_length, args.repetitions)
+# Find a good learning rate from the given ones to iterate many times on
+final_losses = []
+
+# Continual Regression Experiment (Figure 3)
+x_train, y_train, x_val, y_val = gen_sine_data(tasks, args.n_functions,
+                                               args.sample_length,
+                                               args.repetitions)
 x_val = tf.convert_to_tensor(x_val, dtype=tf.float32)
 y_val = tf.convert_to_tensor(y_val, dtype=tf.float32)
 if type(args.learning_rate) is list:
@@ -84,27 +89,19 @@ if type(args.learning_rate) is list:
 else:
     learning_rate = [args.learning_rate]
 
-# Find a good learning rate from the given ones to iterate many times on
-final_losses = []
+# Reshape for inputting to training method
+x_train = np.transpose(x_train, (1, 2, 0, 3))
+y_train = np.transpose(y_train, (1, 2, 0))
+x_train = np.reshape(
+    x_train, (args.repetitions * args.sample_length, args.n_functions, -1))
+y_train = np.reshape(
+    y_train, (args.repetitions * args.sample_length, args.n_functions))
+x_train = np.transpose(x_train, (1, 0, 2))
+y_train = np.transpose(y_train, (1, 0))
+x_train = tf.convert_to_tensor(x_train, dtype=tf.float32)
+y_train = tf.convert_to_tensor(y_train, dtype=tf.float32)
 
 for lr in tqdm.tqdm(learning_rate):
-    # Continual Regression Experiment (Figure 3)
-    x_train, y_train, _, _ = gen_sine_data(tasks, args.n_functions,
-                                           args.sample_length,
-                                           args.repetitions)
-
-    # Reshape for inputting to training method
-    x_train = np.transpose(x_train, (1, 2, 0, 3))
-    y_train = np.transpose(y_train, (1, 2, 0))
-    x_train = np.reshape(
-        x_train, (args.repetitions * args.sample_length, args.n_functions, -1))
-    y_train = np.reshape(
-        y_train, (args.repetitions * args.sample_length, args.n_functions))
-    x_train = np.transpose(x_train, (1, 0, 2))
-    y_train = np.transpose(y_train, (1, 0))
-    x_train = tf.convert_to_tensor(x_train, dtype=tf.float32)
-    y_train = tf.convert_to_tensor(y_train, dtype=tf.float32)
-
     # Numpy -> Tensorflow
     tf.keras.backend.clear_session()
     rln = tf.keras.models.load_model(args.model_file_rln)
