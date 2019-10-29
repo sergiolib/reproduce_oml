@@ -66,7 +66,8 @@ y_val = np.hstack(y_val)
 x_val = tf.convert_to_tensor(x_val, dtype=tf.float32)
 y_val = tf.convert_to_tensor(y_val, dtype=tf.float32)
 
-for epoch in tqdm.trange(args.epochs):
+t = tqdm.trange(args.epochs)
+for epoch in t:
     # Sample data
     x_traj, y_traj, x_rand, y_rand = gen_sine_data(tasks=tasks, n_functions=args.n_functions,
                                                    sample_length=args.sample_length,
@@ -102,6 +103,7 @@ for epoch in tqdm.trange(args.epochs):
         with train_summary_writer.as_default():
             tf.summary.scalar('Sparsity', sparsity, step=epoch)
             tf.summary.scalar('Training loss', loss, step=epoch)
+        t.set_description(f"Sparsity: {sparsity}\tTraining loss: {loss}")
 
     # Save model every "save_models_every" epochs
     if epoch % args.save_models_every == 0 and epoch > 0:
