@@ -29,11 +29,11 @@ argument_parser.add_argument("--tests", default=50, type=int,
                                   " / number of random trajectories")
 argument_parser.add_argument("--model_file_rln",
                              default="saved_models/"
-                                     "pt_lr3e-06_rln6_tln2_rln.tf", type=str,
+                                     "pt_lr1e-07_rln5_tln3_rln.tf", type=str,
                              help="Model file for the rln")
 argument_parser.add_argument("--model_file_tln",
                              default="saved_models/"
-                                     "pt_lr3e-06_rln6_tln2_tln.tf", type=str,
+                                     "pt_lr1e-07_rln5_tln3_tln.tf", type=str,
                              help="Model file for the tln")
 argument_parser.add_argument("--learning_rate", nargs="+", default=0.000003,
                              type=float, help="Learning rate(s) to try")
@@ -126,8 +126,10 @@ for i in tqdm.trange(args.tests):
     # Reshape for inputting to training method
     x_train = np.transpose(x_train, (1, 2, 0, 3))
     y_train = np.transpose(y_train, (1, 2, 0))
-    x_train = np.reshape(x_train, (args.repetitions * args.sample_length, args.n_functions, -1))
-    y_train = np.reshape(y_train, (args.repetitions * args.sample_length, args.n_functions))
+    x_train = np.reshape(x_train, (args.repetitions * args.sample_length,
+                                   args.n_functions, -1))
+    y_train = np.reshape(y_train, (args.repetitions * args.sample_length,
+                                   args.n_functions))
     x_train = np.transpose(x_train, (1, 0, 2))
     y_train = np.transpose(y_train, (1, 0))
     x_train = tf.convert_to_tensor(x_train, dtype=tf.float32)
@@ -150,10 +152,11 @@ for i in tqdm.trange(args.tests):
     results = train_and_evaluate(x_train=x_train, y_train=y_train,
                                  x_test=x_val, y_test=y_val,
                                  rln=rln, tln=tln, optimizer=optimizer,
-                                 loss_function=loss_fun, batch_size=args.batch_size_evaluation)
+                                 loss_function=loss_fun,
+                                 batch_size=args.batch_size_evaluation)
 
     all_results.append((lr, results[args.n_functions]))
 
 location = os.path.join(args.results_dir, f"basic_pt_eval_{lr}.json")
 os.makedirs(os.path.dirname(location), exist_ok=True)
-json.dump(results, open(location, "w"))
+json.dump(all_results, open(location, "w"))
