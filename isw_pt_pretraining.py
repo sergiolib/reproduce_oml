@@ -57,16 +57,17 @@ layers_rln = args.layers_rln if type(args.layers_rln) is list else [args.layers_
 gen = product(layers_rln, args.learning_rate)
 gen = list(gen)
 random.shuffle(gen)
-p = PretrainingBaseline(tf.keras.losses.MeanSquaredError())
 for layers_rln, lr in gen:
     layers_tln = 8 - layers_rln
     print(f"rln: {layers_rln}, tln: {layers_tln}, lr: {lr}")
     train_log_dir = f'logs/pt_isw_lr{lr}_rln{layers_rln}_tln{layers_tln}/' + current_time + '/pre_train'
     makedirs(train_log_dir, exist_ok=True)
     train_summary_writer = tf.summary.create_file_writer(train_log_dir)
+    tf.keras.backend.clear_session()
+    p = PretrainingBaseline(tf.keras.losses.MeanSquaredError())
     p.build_model(n_layers_rln=layers_rln, n_layers_tln=layers_tln, seed=0)
     val_loss_counts = 0
-    previous_val_loss = p.compute_loss_no_training(x_val, y_val)
+    previous_val_loss = p.compute_loss(x_val, y_val)
     with train_summary_writer.as_default():
         tf.summary.scalar("Validation Loss", previous_val_loss, step=0)
     val_loss = None
@@ -95,7 +96,7 @@ for layers_rln, lr in gen:
         if epoch % args.check_val_every == 0:
             with train_summary_writer.as_default():
                 tf.summary.scalar("Training Loss", training_loss, step=epoch)
-            val_loss = float(p.compute_loss_no_training(x_val, y_val))
+            val_loss = float(p.compute_loss(x_val, y_val))
             with train_summary_writer.as_default():
                 tf.summary.scalar("Validation Loss", val_loss, step=epoch + 1)
 
