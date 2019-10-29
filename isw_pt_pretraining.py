@@ -6,6 +6,7 @@ from os import makedirs
 import numpy as np
 import tensorflow as tf
 import random
+import tqdm
 
 from baseline_methods.pretraining import PretrainingBaseline
 from datasets.synth_datasets import gen_sine_data, gen_tasks
@@ -57,7 +58,7 @@ layers_rln = args.layers_rln if type(args.layers_rln) is list else [args.layers_
 gen = product(layers_rln, args.learning_rate)
 gen = list(gen)
 random.shuffle(gen)
-for layers_rln, lr in gen:
+for layers_rln, lr in tqdm.tqdm(gen):
     layers_tln = 8 - layers_rln
     print(f"rln: {layers_rln}, tln: {layers_tln}, lr: {lr}")
     train_log_dir = f'logs/pt_isw_lr{lr}_rln{layers_rln}_tln{layers_tln}/' + current_time + '/pre_train'
