@@ -9,13 +9,12 @@ from parameters import pretraining_parameters
 
 print(f"GPU is available: {tf.test.is_gpu_available()}")
 
-background_data, evaluation_data = load_omniglot(verbose=1)
-background_training_data, _, _ = get_background_data_by_classes(background_data)
-evaluation_training_data, _, _ = get_background_data_by_classes(evaluation_data)
+background_data, _ = load_omniglot(verbose=1)
+_, background_training_data_15, background_training_data_5 = get_background_data_by_classes(background_data)
 x_training = []
 y_training = []
-for class_id in range(len(background_training_data)):
-    for training_item in background_training_data[class_id]:
+for class_id in range(len(background_training_data_15)):
+    for training_item in background_training_data_15[class_id]:
         x_training.append(training_item['image'])
         y_training.append(training_item['label'])
 x_training = tf.convert_to_tensor(x_training)
@@ -23,8 +22,8 @@ y_training = tf.convert_to_tensor(y_training)
 
 x_testing = []
 y_testing = []
-for class_id in range(len(evaluation_training_data)):
-    for training_item in evaluation_training_data[class_id]:
+for class_id in range(len(background_training_data_5)):
+    for training_item in background_training_data_5[class_id]:
         x_testing.append(training_item['image'])
         y_testing.append(training_item['label'])
 x_testing = tf.convert_to_tensor(x_testing)
@@ -33,7 +32,7 @@ y_testing = tf.convert_to_tensor(y_testing)
 t = range(100)
 current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
-learning_rates = [0.1, 0.01, 0.001, 0.0001, 0.00001]
+learning_rates = [0.01, 0.001, 0.0001, 0.00001]
 for lr in learning_rates:
     rln, tln = mrcl_omniglot()
     train_log_dir = f'logs/omniglot_{lr}/' + current_time + '/pre_train'
