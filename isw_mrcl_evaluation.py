@@ -1,13 +1,3 @@
-import datetime
-import os
-import tensorflow as tf
-import tqdm
-import numpy as np
-import json
-
-from datasets.synth_datasets import gen_sine_data, gen_tasks
-from experiments.evaluation import train_and_evaluate
-
 import argparse
 
 # Arguments parsing
@@ -37,6 +27,16 @@ argument_parser.add_argument("--resetting_last_layer", default=True, type=bool,
                              help="Reinitialization of the last layer of the TLN")
 
 args = argument_parser.parse_args()
+
+import datetime
+import os
+import tensorflow as tf
+import tqdm
+import numpy as np
+import json
+
+from datasets.synth_datasets import gen_sine_data, gen_tasks
+from experiments.evaluation import train_and_evaluate
 
 tasks = gen_tasks(args.n_functions)  # Generate tasks parameters
 loss_fun = tf.keras.losses.MeanSquaredError()
