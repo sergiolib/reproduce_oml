@@ -25,6 +25,8 @@ argument_parser.add_argument("--results_dir", default="./results/isw_mrcl/",
                              type=str, help="Evaluation results file")
 argument_parser.add_argument("--resetting_last_layer", default=True, type=bool,
                              help="Reinitialization of the last layer of the TLN")
+argument_parser.add_argument("--epochs", default=1, type=int,
+                             help="Number of maximum epochs to train each class")
 
 args = argument_parser.parse_args()
 
