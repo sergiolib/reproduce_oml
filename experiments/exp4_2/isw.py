@@ -61,8 +61,10 @@ def mrcl_isw(n_layers_rln=6, n_layers_tln=2, hidden_units_per_layer=300, one_hot
     """
     input_rln = tf.keras.Input(shape=one_hot_depth + 1)
     input_tln = tf.keras.Input(shape=representation_size)
-    h = mrcl_isw_rln(input_rln, n_layers_rln, hidden_units_per_layer, seed=seed)
+    h = mrcl_isw_rln(input_rln, n_layers_rln, hidden_units_per_layer,
+                     representation_size=representation_size, seed=seed)
     rln = tf.keras.Model(inputs=input_rln, outputs=h)
-    y = mrcl_isw_tln(input_tln, n_layers_tln, hidden_units_per_layer, seed=seed)
+    y = mrcl_isw_tln(input_tln, n_layers_tln, hidden_units_per_layer,
+                     seed=seed)
     tln = tf.keras.Model(inputs=input_tln, outputs=y)
     return rln, tln
