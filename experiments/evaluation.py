@@ -43,7 +43,7 @@ def train_and_evaluate(x_train, y_train, x_val, y_val, rln, tln, optimizer,
             if prev_loss < output_loss:
                 break
             else:
-                t.set_description(f"Class: {cls}\tClass loss: {output_loss:.4}")
+                # t.set_description(f"Class: {cls}\tClass loss: {output_loss:.4}")
                 prev_loss = output_loss
 
         # Class trained: evaluate all seen data so far
