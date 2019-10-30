@@ -209,3 +209,8 @@ def pre_train(x_pre_train, y_pre_train, rln, tln, learning_rate, classification_
     for p, g in zip(params, gradients):
         p.assign(p - g * learning_rate)
     return loss, output
+
+def get_output(x_pre_train, y_pre_train, rln, tln, classification_parameters):
+    with tf.GradientTape() as tape:
+        loss, output = compute_loss(x_pre_train, y_pre_train, rln, tln, classification_parameters)
+    return loss, output
