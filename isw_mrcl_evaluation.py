@@ -56,6 +56,8 @@ optimizer = tf.keras.optimizers.SGD(learning_rate=lr)
 all_results_3a = []
 all_results_3b = []
 
+results_so_far_3a = {}
+
 # Continual Regression Experiment (Figure 3)
 for trajectory in tqdm.trange(args.tests):
     tf.keras.backend.clear_session()
@@ -101,6 +103,11 @@ for trajectory in tqdm.trange(args.tests):
         epochs=args.epochs)
     all_results_3a.append(results_3a)
     all_results_3b.append(results_3b)
+
+    results_so_far_3a = {a: results_so_far_3a.get(a, 0) + results_3a[a]
+                         for a in results_3a}
+    print({a: results_so_far_3a[a] / (trajectory + 1)
+           for a in results_so_far_3a})
 
 location = os.path.join(args.results_dir, f"isw_mrcl_eval_{lr}_3a.json")
 os.makedirs(os.path.dirname(location), exist_ok=True)
