@@ -1,3 +1,18 @@
+import math
+
+def factor_int(n):
+    nsqrt = math.ceil(math.sqrt(n))
+    solution = False
+    val = nsqrt
+    while not solution:
+        val2 = int(n/val)
+        if val2 * val == float(n):
+            solution = True
+        else:
+            val-=1
+    return val, val2
+
+
 import argparse
 # Parse arguments
 argument_parser = argparse.ArgumentParser()
@@ -126,7 +141,9 @@ for epoch in range(args.epochs):
     if epoch % args.post_results_every == 0:
         x = x_val
         rep = rln(x)
-        rep = [tf.reshape(r, (30, 10, 1)) for r in rep]
+        rep_len = rep.shape[-1]
+        rep_f1, rep_f2 = factor_int(rep_len)
+        rep = [tf.reshape(r, (rep_f1, rep_f2, 1)) for r in rep]
         rep = [r / tf.reduce_max(r) for r in rep]
         rep = tf.random.shuffle(tf.stack(rep))
         with train_summary_writer.as_default():
