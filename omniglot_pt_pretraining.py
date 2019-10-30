@@ -14,7 +14,7 @@ background_training_data, _, _ = get_background_data_by_classes(background_data)
 evaluation_training_data, _, _ = get_background_data_by_classes(evaluation_data)
 x_training = []
 y_training = []
-for class_id in background_training_data:
+for class_id in range(len(background_training_data)):
     for training_item in evaluation_training_data[class_id]:
         x_training.append(training_item['image'])
         y_training.append(training_item['label'])
@@ -23,7 +23,7 @@ y_training = tf.convert_to_tensor(y_training)
 
 x_testing = []
 y_testing = []
-for class_id in evaluation_training_data:
+for class_id in range(len(evaluation_training_data)):
     for training_item in evaluation_training_data[class_id]:
         x_testing.append(training_item['image'])
         y_testing.append(training_item['label'])
