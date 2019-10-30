@@ -44,7 +44,7 @@ for lr in learning_rates:
     train_summary_writer = tf.summary.create_file_writer(train_log_dir)
     for epoch, v in enumerate(t):
         for x, y in tf.data.Dataset.from_tensor_slices((x_training, y_training)).shuffle(True).batch(256):
-            loss, _ = pre_train(x, y, rln, tln, lr, classification_parameters)
+            loss, _ = pre_train(x, y, rln, tln, lr)
 
         with train_summary_writer.as_default():
             tf.summary.scalar('Training loss', loss, step=epoch)
