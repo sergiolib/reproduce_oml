@@ -17,11 +17,8 @@ def pretrain(sort_samples=True, model_name="mrcl"):
     s_learn, s_remember = partition_into_disjoint(background_training_data)
 
     rln, tln = mrcl_omniglot()
-    print(rln.summary())
-    print(tln.summary())
 
     t = range(15000)
-    tasks = None
 
     current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     train_log_dir = 'logs/classification/pretraining/omniglot/mrcl/gradient_tape/' + current_time + '/train'
@@ -44,6 +41,6 @@ def pretrain(sort_samples=True, model_name="mrcl"):
             tf.summary.scalar('Sparsity', sparsity, step=epoch)
             tf.summary.scalar('Training loss', loss, step=epoch)
         print("Epoch:", epoch, "Sparsity:", sparsity, "Training loss:", loss.numpy())
-        if epoch % 999 == 0:
+        if (epoch+1) % 999 == 0:
             save_models(tln, f"tln_pretraining_{model_name}_{epoch}_omniglot")
             save_models(rln, f"rln_pretraining_{model_name}_{epoch}_omniglot")
