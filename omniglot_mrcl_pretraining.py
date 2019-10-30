@@ -40,7 +40,7 @@ def pretrain(sort_samples=True, model_name="mrcl"):
         with train_summary_writer.as_default():
             tf.summary.scalar('Sparsity', sparsity, step=epoch)
             tf.summary.scalar('Training loss', loss, step=epoch)
-        print("Epoch:", epoch, "Sparsity:", sparsity, "Training loss:", loss.numpy())
-        if (epoch+1) % 999 == 0:
+        if (epoch+1) % 1000 == 0:
+            print("Epoch:", epoch, "Sparsity:", sparsity, "Training loss:", loss.numpy())
             save_models(tln, f"tln_pretraining_{model_name}_{epoch}_omniglot")
             save_models(rln, f"rln_pretraining_{model_name}_{epoch}_omniglot")
