@@ -1,6 +1,4 @@
 import tensorflow as tf
-import numpy as np
-import tqdm
 
 
 @tf.function
@@ -15,8 +13,7 @@ def train_and_evaluate(x_train, y_train, x_val, y_val, rln, tln, optimizer,
     results_3b = {}
     for cls in range(len(x_train)):
         prev_loss = float("inf")
-        t = tqdm.trange(epochs)
-        for e in t:
+        for e in range(epochs):
             # get its data points
             data = tf.data.Dataset.from_tensor_slices((x_train[cls], y_train[cls])).batch(batch_size)
 
