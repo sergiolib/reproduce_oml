@@ -200,3 +200,12 @@ def evaluate_classification_mrcl(training_data, testing_data, rln, tln, number_o
     test_accuracy = total_correct/x_testing.shape[0]
     return test_accuracy.numpy(), train_accuracy.numpy()
 
+
+def pre_train(x_pre_train, y_pre_train, rln, tln, learning_rate, classification_parameters):
+    with tf.GradientTape() as tape:
+        loss, output = compute_loss(x_pre_train, y_pre_train, rln, tln, classification_parameters)
+    params = rln.trainable_variables + tln.trainable_variables
+    gradients = tape.gradient(loss, params)
+    for p, g in zip(params, gradients):
+        p.assign(p - g * learning_rate)
+    return loss, output

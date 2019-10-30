@@ -16,3 +16,7 @@ classification_parameters = {
     "online_learning_rate": 0.001,
     "meta_optimizer": tf.optimizers.Adam
 }
+
+pretraining_parameters = {
+    "loss_function": tf.losses.SparseCategoricalCrossentropy(from_logits=True)
+}
