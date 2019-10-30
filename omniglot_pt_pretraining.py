@@ -35,15 +35,13 @@ rln, tln = mrcl_omniglot()
 t = range(1000)
 
 current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-train_log_dir = 'logs/classification/pretraining/omniglot/mrcl/gradient_tape/' + current_time + '/train'
-train_summary_writer = tf.summary.create_file_writer(train_log_dir)
 
 learning_rates = [0.1, 0.01, 0.001, 0.0001, 0.00001]
 for lr in learning_rates:
     train_log_dir = f'logs/omniglot_{lr}/' + current_time + '/pre_train'
     train_summary_writer = tf.summary.create_file_writer(train_log_dir)
     for epoch, v in enumerate(t):
-        for x, y in tf.data.Dataset.from_tensor_slices((x_training, y_training)).shuffle(True).batch(256):
+        for x, y in tf.data.Dataset.from_tensor_slices((x_training, y_training)).shuffle(True).batch(32):
             loss, _ = pre_train(x, y, rln, tln, lr, pretraining_parameters)
         print("learning rate:", lr, "Epoch:", epoch, "Training loss:", loss.numpy())
         with train_summary_writer.as_default():
@@ -51,7 +49,7 @@ for lr in learning_rates:
     
         if epoch % 100 == 0 and epoch != 0:
             total_correct = 0
-            for x, y in tf.data.Dataset.from_tensor_slices((x_training, y_training)).shuffle(True).batch(256):
+            for x, y in tf.data.Dataset.from_tensor_slices((x_training, y_training)).shuffle(True).batch(32):
                 loss, output = pre_train(x, y, rln, tln, lr, pretraining_parameters)
                 after_softmax = tf.nn.softmax(output, axis=1)
                 correct_prediction = tf.equal(tf.cast(tf.argmax(after_softmax, axis=1), tf.int32), y)
@@ -59,7 +57,7 @@ for lr in learning_rates:
             train_accuracy = total_correct / x_training.shape[0]
 
             total_correct = 0
-            for x, y in tf.data.Dataset.from_tensor_slices((x_testing, y_testing)).shuffle(True).batch(256):
+            for x, y in tf.data.Dataset.from_tensor_slices((x_testing, y_testing)).shuffle(True).batch(32):
                 loss, output = pre_train(x, y, rln, tln, lr, pretraining_parameters)
                 after_softmax = tf.nn.softmax(output, axis=1)
                 correct_prediction = tf.equal(tf.cast(tf.argmax(after_softmax, axis=1), tf.int32), y)
