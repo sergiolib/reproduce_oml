@@ -116,7 +116,7 @@ for epoch in range(args.epochs):
         with train_summary_writer.as_default():
             tf.summary.scalar('Sparsity', sparsity, step=epoch)
             tf.summary.scalar('Training loss', loss, step=epoch)
-        print(f"Sparsity: {sparsity}\tTraining loss: {loss}")
+        print(f"Epoch: {epoch}\tSparsity: {sparsity}\tTraining loss: {loss}")
 
     # Save model every "save_models_every" epochs
     if epoch % args.save_models_every == 0 and epoch > 0:
