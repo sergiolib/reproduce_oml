@@ -9,11 +9,16 @@ from datasets.tf_datasets import load_omniglot
 from parameters import classification_parameters
 
 
-def evaluate(model_name):
+def evaluate(model_name, oracle=True):
+
+    if oracle:
+        model_type = "oracle"
+    else:
+        model_type = "mrcl"
 
     _, evaluation_data = load_omniglot(verbose=1)
     evaluation_training_data, evaluation_test_data = get_eval_data_by_classes(evaluation_data)
-    save_dir = "results/omniglot/mrcl"
+    save_dir = "results/omniglot/" + model_type
     try:
         os.stat(save_dir)
     except IOError:
@@ -26,9 +31,11 @@ def evaluate(model_name):
         train_accuracy_results = []
         for lr in lrs:
             tf.keras.backend.clear_session()
+
             _, original_tln = mrcl_omniglot(classes=point)
-            rln_saved = tf.keras.models.load_model("saved_models_300_nodes/rln_" + model_name)
-            tln_saved = tf.keras.models.load_model("saved_models_300_nodes/tln_" + model_name)
+            rln_saved = tf.keras.models.load_model("saved_models/rln_" + model_name)
+            tln_saved = tf.keras.models.load_model("saved_models/tln_" + model_name)
+
             tln_weights = [tln_saved.get_weights()[0], tln_saved.get_weights()[1], original_tln.get_weights()[2], original_tln.get_weights()[3]]
             classification_parameters["online_learning_rate"] = lr
             rln, tln = mrcl_omniglot(classes=point)
@@ -51,15 +58,16 @@ def evaluate(model_name):
         for _ in range(50):
             classification_parameters["online_learning_rate"] = test_lr
             tf.keras.backend.clear_session()
+
             _, original_tln = mrcl_omniglot(classes=point)
             rln, tln = mrcl_omniglot(classes=point)
-            rln_saved = tf.keras.models.load_model("saved_models_300_nodes/rln_" + model_name)
+            rln_saved = tf.keras.models.load_model("saved_models/rln_" + model_name)
             tln.set_weights(original_tln.get_weights())
             rln.set_weights(rln_saved.get_weights())
             test_accuracy, _ = evaluate_classification_mrcl(evaluation_training_data, evaluation_test_data, rln, tln,
                                                             point, classification_parameters)
             test_accuracy_results.append(str(test_accuracy))
-        with open(f"{save_dir}/mrcl_omniglot_testing_{point}.json",
+        with open(f"{save_dir}/{model_type}_omniglot_testing_{point}.json",
                   'w') as f:  # writing JSON object
             json.dump(test_accuracy_results, f)
 
@@ -68,14 +76,15 @@ def evaluate(model_name):
             classification_parameters["online_learning_rate"] = train_lr
             tf.keras.backend.clear_session()
             _, original_tln = mrcl_omniglot(classes=point)
-            rln_saved = tf.keras.models.load_model("saved_models_300_nodes/rln_" + model_name)
+            rln_saved = tf.keras.models.load_model("saved_models/rln_" + model_name)
             rln, tln = mrcl_omniglot(classes=point)
+
             tln.set_weights(original_tln.get_weights())
             rln.set_weights(rln_saved.get_weights())
             _, train_accuracy = evaluate_classification_mrcl(evaluation_training_data, evaluation_test_data, rln,
                                                              tln, point, classification_parameters)
             train_accuracy_results.append(str(train_accuracy))
-        with open(f"{save_dir}/mrcl_omniglot_training_{point}.json",
+        with open(f"{save_dir}/{model_type}_omniglot_training_{point}.json",
                   'w') as f:  # writing JSON object
             json.dump(train_accuracy_results, f)
 
