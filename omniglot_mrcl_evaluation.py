@@ -88,4 +88,4 @@ def evaluate(model_name, oracle=True):
                   'w') as f:  # writing JSON object
             json.dump(train_accuracy_results, f)
 
-# evaluate("pretraining_mrcl_11999_omniglot.tf")
+#evaluate("pretraining_mrcl_11999_omniglot.tf")

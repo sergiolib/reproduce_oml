@@ -21,7 +21,7 @@ def pretrain(sort_samples=True, model_name="mrcl"):
     t = range(15000)
 
     current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    train_log_dir = 'logs/classification/pretraining/omniglot/mrcl/gradient_tape/' + current_time + '/train'
+    train_log_dir = 'logs/classification/pretraining/omniglot/' + model_name + '/gradient_tape/' + current_time + '/train'
     train_summary_writer = tf.summary.create_file_writer(train_log_dir)
 
     tln_initial = tf.keras.models.clone_model(tln)
@@ -44,3 +44,4 @@ def pretrain(sort_samples=True, model_name="mrcl"):
             print("Epoch:", epoch, "Sparsity:", sparsity, "Training loss:", loss.numpy())
             save_models(tln, f"tln_pretraining_{model_name}_{epoch}_omniglot")
             save_models(rln, f"rln_pretraining_{model_name}_{epoch}_omniglot")
+
