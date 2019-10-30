@@ -98,7 +98,7 @@ for trajectory in tqdm.trange(args.tests):
         rln=rln, tln=tln, optimizer=optimizer,
         loss_function=loss_fun,
         batch_size=args.batch_size_evaluation,
-        epochs=1)
+        epochs=args.epochs)
     all_results_3a.append(results_3a)
     all_results_3b.append(results_3b)
 
