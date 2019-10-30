@@ -44,7 +44,7 @@ for lr in learning_rates:
     train_summary_writer = tf.summary.create_file_writer(train_log_dir)
     for epoch, v in enumerate(t):
         for x, y in tf.data.Dataset.from_tensor_slices((x_training, y_training)).shuffle(True).batch(256):
-            loss, _ = pre_train(x, y, rln, tln, lr)
+            loss, _ = pre_train(x, y, rln, tln, classification_parameters)
 
         with train_summary_writer.as_default():
             tf.summary.scalar('Training loss', loss, step=epoch)
@@ -63,9 +63,7 @@ for lr in learning_rates:
             total_correct = total_correct + tf.reduce_sum(tf.cast(correct_prediction, tf.float32))
         test_accuracy = total_correct / x_testing.shape[0]
 
-
         with train_summary_writer.as_default():
-            tf.summary.scalar('Training loss', loss, step=epoch)
             tf.summary.scalar('Training accuracy', train_accuracy, step=epoch)
             tf.summary.scalar('Testing accuracy', test_accuracy, step=epoch)
 
