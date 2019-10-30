@@ -26,7 +26,6 @@ def save_models(model, name):
     model.save(f"saved_models/{name}.tf", save_format="tf")
 
 
-@tf.function
 def inner_update(x, y, tln, rln, beta, loss_fun):
     with tf.GradientTape(watch_accessed_variables=False) as Wj_Tape:
         Wj_Tape.watch(tln.trainable_variables)
@@ -66,7 +65,8 @@ def pretrain_mrcl(x_traj, y_traj, x_rand, y_rand, tln, tln_initial, rln, meta_op
     y_meta = tf.concat([y_rand, y_traj_f], axis=0)
 
     for x, y in tf.data.Dataset.from_tensor_slices((x_traj, y_traj)):
-        inner_update(x=x, y=y, tln=tln, rln=rln, beta=beta, loss_fun=loss_function)
+        inner_update(x=x, y=y, tln=tln, rln=rln, beta=beta,
+                     loss_fun=loss_function)
 
     with tf.GradientTape(persistent=True) as theta_Tape:
         outer_loss = compute_loss(x=x_meta, y=y_meta, tln=tln, rln=rln, loss_fun=loss_function)

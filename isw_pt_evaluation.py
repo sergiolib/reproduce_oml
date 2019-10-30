@@ -76,7 +76,8 @@ train_log_dir = 'logs/pt_isw/' + current_time + '/eval'
 os.makedirs(train_log_dir, exist_ok=True)
 
 # Find a good learning rate from the given ones to iterate many times on
-final_losses = []
+final_losses_3a = []
+final_losses_3b = []
 
 # Continual Regression Experiment (Figure 3)
 x_train, y_train, x_val, y_val = gen_sine_data(tasks, args.n_functions,

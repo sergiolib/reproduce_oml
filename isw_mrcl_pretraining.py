@@ -1,15 +1,4 @@
 import argparse
-import datetime
-from os import makedirs
-
-import numpy as np
-import tensorflow as tf
-import tqdm
-
-from datasets.synth_datasets import gen_sine_data, gen_tasks
-from experiments.exp4_2.isw import mrcl_isw
-from experiments.training import pretrain_mrcl, save_models
-
 # Parse arguments
 argument_parser = argparse.ArgumentParser()
 argument_parser.add_argument("--meta_learning_rate", type=float, default=1e-4,
@@ -25,40 +14,57 @@ argument_parser.add_argument("--n_functions", type=int, default=10,
 argument_parser.add_argument("--sample_length", type=int, default=32,
                              help="length of each sequence sampled")
 argument_parser.add_argument("--repetitions", type=int, default=40,
-                             help="number of train repetitions for generating the data samples")
+                             help="number of train repetitions for generating"
+                                  " the data samples")
 argument_parser.add_argument("--save_models_every", type=int, default=100,
-                             help="Amount of epochs to pass before saving models")
+                             help="Amount of epochs to pass before saving"
+                                  " models")
 argument_parser.add_argument("--post_results_every", type=int, default=50,
-                             help="Amount of epochs to pass before posting results in Tensorboard")
+                             help="Amount of epochs to pass before posting"
+                                  " results in Tensorboard")
 argument_parser.add_argument("--resetting_last_layer", default=True, type=bool,
-                             help="Reinitialization of the last layer of the TLN")
+                             help="Reinitialization of the last layer of"
+                                  " the TLN")
 
 args = argument_parser.parse_args()
 
-tasks = gen_tasks(args.n_functions)  # Generate tasks parameters
+import datetime
+import os
+
+import numpy as np
+import tensorflow as tf
+import tqdm
+
+from datasets.synth_datasets import gen_sine_data, gen_tasks
+from experiments.exp4_2.isw import mrcl_isw
+from experiments.training import pretrain_mrcl, save_models
+
+tasks = gen_tasks(args.n_tasks)  # Generate tasks parameters
+val_tasks = gen_tasks(args.n_functions)
 loss_fun = tf.keras.losses.MeanSquaredError()
 
 # Create logs directories
 current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 train_log_dir = 'logs/isw/' + current_time + '/train'
-makedirs(train_log_dir, exist_ok=True)
+os.makedirs(train_log_dir, exist_ok=True)
 
 # Main pre training loop
-rln, tln = mrcl_isw(one_hot_depth=args.n_functions)  # Create and initialize models
-
-print(rln.summary())
-print(tln.summary())
+# Create and initialize models
+rln, tln = mrcl_isw(one_hot_depth=args.n_functions)
 
 # Create file writer for Tensorboard (logdir = ./logs/isw)
 train_summary_writer = tf.summary.create_file_writer(train_log_dir)
 
 # Initialize loss function and meta optimizer
-meta_optimizer = tf.keras.optimizers.Adam(learning_rate=args.meta_learning_rate)
+mlr = args.meta_learning_rate
+meta_optimizer = tf.keras.optimizers.Adam(learning_rate=mlr)
 
-# Fabricate TLN clone for storing the parameters at the beginning of each iteration
+# Fabricate TLN clone for storing the parameters at the beginning of each
+# iteration
 tln_initial = tf.keras.models.clone_model(tln)
 
-_, _, x_val, y_val = gen_sine_data(tasks=tasks, n_functions=args.n_functions,
+_, _, x_val, y_val = gen_sine_data(tasks=val_tasks,
+                                   n_functions=args.n_functions,
                                    sample_length=args.sample_length,
                                    repetitions=args.repetitions)
 
@@ -71,11 +77,15 @@ x_val = tf.convert_to_tensor(x_val, dtype=tf.float32)
 y_val = tf.convert_to_tensor(y_val, dtype=tf.float32)
 
 t = tqdm.trange(args.epochs)
+n_functions = args.n_functions
+sl = args.sample_length
+reps = args.repetitions
 for epoch in t:
     # Sample data
-    x_traj, y_traj, x_rand, y_rand = gen_sine_data(tasks=tasks, n_functions=args.n_functions,
-                                                   sample_length=args.sample_length,
-                                                   repetitions=args.repetitions)
+    x_traj, y_traj, x_rand, y_rand = gen_sine_data(tasks=tasks,
+                                                   n_functions=n_functions,
+                                                   sample_length=sl,
+                                                   repetitions=reps)
 
     # Reshape for inputting to training method
     x_traj = np.vstack(x_traj)
@@ -98,7 +108,8 @@ for epoch in t:
                          beta=args.inner_learning_rate,
                          reset_last_layer=args.resetting_last_layer)
 
-    # Check metrics for Tensorboard to be included every "post_results_every" epochs
+    # Check metrics for Tensorboard to be included every "post_results_every"
+    # epochs
     if epoch % args.post_results_every == 0:
         rep = rln(x_rand)
         rep = np.array(rep)
@@ -111,8 +122,8 @@ for epoch in t:
 
     # Save model every "save_models_every" epochs
     if epoch % args.save_models_every == 0 and epoch > 0:
-        save_models(model=rln, name=f"rln_{epoch}")
-        save_models(model=tln, name=f"tln_{epoch}")
+        save_models(model=rln, name=f"isw_mrcl_rln")
+        save_models(model=tln, name=f"isw_mrcl_tln")
 
     if epoch % args.post_results_every == 0:
         x = x_val
@@ -124,5 +135,5 @@ for epoch in t:
             tf.summary.image("representation", rep, epoch)
 
 # Save final model
-save_models(model=rln, name=f"rln_final")
-save_models(model=tln, name=f"tln_final")
+save_models(model=rln, name=f"isw_mrcl_rln")
+save_models(model=tln, name=f"isw_mrcl_tln")
