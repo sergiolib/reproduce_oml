@@ -5,7 +5,7 @@ import numpy as np
 from experiments.exp4_2.omniglot_model import mrcl_omniglot, get_background_data_by_classes, get_eval_data_by_classes, pre_train
 from datasets.tf_datasets import load_omniglot
 from experiments.training import save_models
-from parameters import classification_parameters
+from parameters import pretraining_parameters
 
 print(f"GPU is available: {tf.test.is_gpu_available()}")
 
@@ -44,20 +44,20 @@ for lr in learning_rates:
     train_summary_writer = tf.summary.create_file_writer(train_log_dir)
     for epoch, v in enumerate(t):
         for x, y in tf.data.Dataset.from_tensor_slices((x_training, y_training)).shuffle(True).batch(256):
-            loss, _ = pre_train(x, y, rln, tln, classification_parameters)
+            loss, _ = pre_train(x, y, rln, tln, lr, pretraining_parameters)
 
         with train_summary_writer.as_default():
             tf.summary.scalar('Training loss', loss, step=epoch)
 
         for x, y in tf.data.Dataset.from_tensor_slices((x_training, y_training)).shuffle(True).batch(256):
-            loss, output = pre_train(x, y, rln, tln, lr, classification_parameters)
+            loss, output = pre_train(x, y, rln, tln, lr, pretraining_parameters)
             after_softmax = tf.nn.softmax(output, axis=1)
             correct_prediction = tf.equal(tf.cast(tf.argmax(after_softmax, axis=1), tf.int32), y)
             total_correct = total_correct + tf.reduce_sum(tf.cast(correct_prediction, tf.float32))
         train_accuracy = total_correct / x_training.shape[0]
 
         for x, y in tf.data.Dataset.from_tensor_slices((x_testing, y_testing)).shuffle(True).batch(256):
-            loss, output = pre_train(x, y, rln, tln, lr, classification_parameters)
+            loss, output = pre_train(x, y, rln, tln, lr, pretraining_parameters)
             after_softmax = tf.nn.softmax(output, axis=1)
             correct_prediction = tf.equal(tf.cast(tf.argmax(after_softmax, axis=1), tf.int32), y)
             total_correct = total_correct + tf.reduce_sum(tf.cast(correct_prediction, tf.float32))
