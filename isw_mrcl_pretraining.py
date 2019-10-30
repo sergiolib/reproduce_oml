@@ -45,6 +45,10 @@ makedirs(train_log_dir, exist_ok=True)
 
 # Main pre training loop
 rln, tln = mrcl_isw(one_hot_depth=args.n_functions)  # Create and initialize models
+
+print(rln.summary())
+print(tln.summary())
+
 # Create file writer for Tensorboard (logdir = ./logs/isw)
 train_summary_writer = tf.summary.create_file_writer(train_log_dir)
 

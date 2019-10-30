@@ -10,9 +10,9 @@ def compute_loss(x, y, loss_function, tln, rln):
 
 def train_and_evaluate(x_train, y_train, x_val, y_val, rln, tln, optimizer,
                        loss_function, batch_size, epochs=1000):
-    results = {}
-
     # For every class
+    results_3a = {}
+    results_3b = {}
     for cls in range(len(x_train)):
         prev_loss = float("inf")
         t = tqdm.trange(epochs)
@@ -43,9 +43,31 @@ def train_and_evaluate(x_train, y_train, x_val, y_val, rln, tln, optimizer,
             if prev_loss < output_loss:
                 break
             else:
-                t.set_description(f"Class: {cls}\tLoss: {output_loss:.4}")
+                t.set_description(f"Class: {cls}\tClass loss: {output_loss:.4}")
                 prev_loss = output_loss
 
-        results[cls + 1] = np.asscalar(np.array(prev_loss))
+        # Class trained: evaluate all seen data so far
+        x_val_classes_seen = x_val[:cls + 1]
+        y_val_classes_seen = y_val[:cls + 1]
 
-    return results
+        output_loss = 0
+        data_iter = tf.data.Dataset.from_tensor_slices((x_val_classes_seen,
+                                                        y_val_classes_seen))
+        i = 0
+        for x, y in data_iter:
+            output_loss += float(compute_loss(x, y, loss_function, tln, rln))
+            i += 1
+        output_loss /= i
+        results_3a[cls + 1] = output_loss
+
+    x_val_classes_seen = x_val
+    y_val_classes_seen = y_val
+
+    data_iter = tf.data.Dataset.from_tensor_slices((x_val_classes_seen,
+                                                    y_val_classes_seen))
+    for i, (x, y) in enumerate(data_iter):
+        results_3b[i + 1] = float(compute_loss(x, y, loss_function, tln, rln))
+
+    # Results_3a: Mean Squared Error of classes seen so far
+    # Results_3b: Mean Squared Error of each class in the end
+    return results_3a, results_3b

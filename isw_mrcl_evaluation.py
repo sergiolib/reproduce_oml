@@ -1,5 +1,5 @@
 import datetime
-from os import makedirs
+import os
 import tensorflow as tf
 import tqdm
 import numpy as np
@@ -25,15 +25,14 @@ argument_parser.add_argument("--batch_size_evaluation", default=8, type=int,
                              help="Batch size for evaluation stage training")
 argument_parser.add_argument("--tests", default=50, type=int,
                              help="Times to test and get results / number of random trajectories")
-argument_parser.add_argument("--model_file_rln", default="saved_models/rln_final.tf", type=str,
+argument_parser.add_argument("--model_file_rln", default="./saved_models/rln_final.tf", type=str,
                              help="Model file for the rln")
-argument_parser.add_argument("--model_file_tln", default="saved_models/tln_final.tf", type=str,
+argument_parser.add_argument("--model_file_tln", default="./saved_models/tln_final.tf", type=str,
                              help="Model file for the tln")
-argument_parser.add_argument("--learning_rates", nargs="+",
-                             default=[0.3, 0.1, 0.03, 0.01, 0.003, 0.001, 0.0003, 0.0001, 0.00003, 0.00001],
+argument_parser.add_argument("--learning_rate", default=0.003,
                              type=float, help="Model file for the tln")
-argument_parser.add_argument("--results_file", default="evaluation_results.json", type=str,
-                             help="Evaluation results file")
+argument_parser.add_argument("--results_dir", default="./results/isw_mrcl/",
+                             type=str, help="Evaluation results file")
 argument_parser.add_argument("--resetting_last_layer", default=True, type=bool,
                              help="Reinitialization of the last layer of the TLN")
 
@@ -45,13 +44,18 @@ loss_fun = tf.keras.losses.MeanSquaredError()
 # Create logs directories
 current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 train_log_dir = 'logs/isw/' + current_time + '/train'
-makedirs(train_log_dir, exist_ok=True)
+os.makedirs(train_log_dir, exist_ok=True)
 
-all_results = {}
+test_tasks = gen_tasks(args.n_tasks)
+
+lr = args.learning_rate
+optimizer = tf.keras.optimizers.SGD(learning_rate=lr)
+
+all_results_3a = []
+all_results_3b = []
+
+# Continual Regression Experiment (Figure 3)
 for trajectory in tqdm.trange(args.tests):
-    all_results[trajectory] = {}
-
-    test_tasks = gen_tasks(args.n_tasks)
     x_train, y_train, x_val, y_val = gen_sine_data(test_tasks,
                                                    args.n_functions,
                                                    args.sample_length,
@@ -60,8 +64,10 @@ for trajectory in tqdm.trange(args.tests):
     # Reshape for inputting to training method
     x_train = np.transpose(x_train, (1, 2, 0, 3))
     y_train = np.transpose(y_train, (1, 2, 0))
-    x_train = np.reshape(x_train, (args.repetitions * args.sample_length, args.n_functions, -1))
-    y_train = np.reshape(y_train, (args.repetitions * args.sample_length, args.n_functions))
+    x_train = np.reshape(x_train, (args.repetitions * args.sample_length,
+                                   args.n_functions, -1))
+    y_train = np.reshape(y_train, (args.repetitions * args.sample_length,
+                                   args.n_functions))
     x_train = np.transpose(x_train, (1, 0, 2))
     y_train = np.transpose(y_train, (1, 0))
 
@@ -71,26 +77,30 @@ for trajectory in tqdm.trange(args.tests):
     x_train = tf.convert_to_tensor(x_train, dtype=tf.float32)
     y_train = tf.convert_to_tensor(y_train, dtype=tf.float32)
 
-    # Continual Regression Experiment (Figure 3)
-    for lr in tqdm.tqdm(args.learning_rates, leave=False):
-        rln = tf.keras.models.load_model(args.model_file_rln)
-        tln = tf.keras.models.load_model(args.model_file_tln)
+    rln = tf.keras.models.load_model(args.model_file_rln)
+    tln = tf.keras.models.load_model(args.model_file_tln)
 
-        if args.resetting_last_layer:
-            # Random reinitialization of last layer
-            w = tln.layers[-1].weights[0]
-            b = tln.layers[-1].weights[1]
-            new_w = tf.keras.initializers.he_normal()(shape=w.shape)
-            w.assign(new_w)
-            new_b = tf.keras.initializers.zeros()(shape=b.shape)
-            b.assign(new_b)
+    if args.resetting_last_layer:
+        # Random reinitialization of last layer
+        w = tln.layers[-1].weights[0]
+        b = tln.layers[-1].weights[1]
+        new_w = tf.keras.initializers.he_normal()(shape=w.shape)
+        w.assign(new_w)
+        new_b = tf.keras.initializers.zeros()(shape=b.shape)
+        b.assign(new_b)
 
-        optimizer = tf.keras.optimizers.SGD(learning_rate=lr)
-        results = train_and_evaluate(x_train=x_train, y_train=y_train,
-                                     x_test=x_val, y_test=y_val,
-                                     rln=rln, tln=tln, optimizer=optimizer,
-                                     loss_function=loss_fun, batch_size=args.batch_size_evaluation)
-        all_results[trajectory][lr] = results
+    results_3a, results_3b = train_and_evaluate(
+        x_train=x_train, y_train=y_train,
+        x_val=x_val, y_val=y_val,
+        rln=rln, tln=tln, optimizer=optimizer,
+        loss_function=loss_fun,
+        batch_size=args.batch_size_evaluation,
+        epochs=1)
+    all_results_3a.append(results_3a)
+    all_results_3b.append(results_3b)
 
-
-json.dump(all_results, open(args.results_file, "w"))
+location = os.path.join(args.results_dir, f"isw_mrcl_eval_{lr}_3a.json")
+os.makedirs(os.path.dirname(location), exist_ok=True)
+json.dump(all_results_3a, open(location, "w"))
+location = os.path.join(args.results_dir, f"isw_mrcl_eval_{lr}_3b.json")
+json.dump(all_results_3b, open(location, "w"))
