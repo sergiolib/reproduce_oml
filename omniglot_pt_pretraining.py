@@ -2,7 +2,7 @@ import tensorflow as tf
 import datetime
 import numpy as np
 
-from experiments.exp4_2.omniglot_model import mrcl_omniglot, get_background_data_by_classes, get_eval_data_by_classes, pre_train
+from experiments.exp4_2.omniglot_model import mrcl_omniglot, get_background_data_by_classes, get_eval_data_by_classes, pre_train, get_output
 from datasets.tf_datasets import load_omniglot
 from experiments.training import save_models
 from parameters import pretraining_parameters
@@ -47,7 +47,7 @@ for lr in learning_rates:
         if epoch % 10 == 0 and epoch != 0:
             total_correct = 0
             for x, y in tf.data.Dataset.from_tensor_slices((x_training, y_training)).shuffle(True).batch(32):
-                loss, output = pre_train(x, y, rln, tln, lr, pretraining_parameters)
+                loss, output = get_output(x, y, rln, tln, pretraining_parameters)
                 after_softmax = tf.nn.softmax(output, axis=1)
                 correct_prediction = tf.equal(tf.cast(tf.argmax(after_softmax, axis=1), tf.int32), y)
                 total_correct = total_correct + tf.reduce_sum(tf.cast(correct_prediction, tf.float32))
@@ -55,7 +55,7 @@ for lr in learning_rates:
 
             total_correct = 0
             for x, y in tf.data.Dataset.from_tensor_slices((x_testing, y_testing)).shuffle(True).batch(32):
-                loss, output = pre_train(x, y, rln, tln, lr, pretraining_parameters)
+                loss, output = get_output(x, y, rln, tln, pretraining_parameters)
                 after_softmax = tf.nn.softmax(output, axis=1)
                 correct_prediction = tf.equal(tf.cast(tf.argmax(after_softmax, axis=1), tf.int32), y)
                 total_correct = total_correct + tf.reduce_sum(tf.cast(correct_prediction, tf.float32))
