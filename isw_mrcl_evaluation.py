@@ -56,6 +56,7 @@ all_results_3b = []
 
 # Continual Regression Experiment (Figure 3)
 for trajectory in tqdm.trange(args.tests):
+    tf.keras.backend.clear_session()
     x_train, y_train, x_val, y_val = gen_sine_data(test_tasks,
                                                    args.n_functions,
                                                    args.sample_length,
