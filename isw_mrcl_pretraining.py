@@ -33,7 +33,6 @@ import os
 
 import numpy as np
 import tensorflow as tf
-import tqdm
 
 from datasets.synth_datasets import gen_sine_data, gen_tasks
 from experiments.exp4_2.isw import mrcl_isw
@@ -76,11 +75,10 @@ y_val = np.hstack(y_val)
 x_val = tf.convert_to_tensor(x_val, dtype=tf.float32)
 y_val = tf.convert_to_tensor(y_val, dtype=tf.float32)
 
-t = tqdm.trange(args.epochs)
 n_functions = args.n_functions
 sl = args.sample_length
 reps = args.repetitions
-for epoch in t:
+for epoch in range(args.epochs):
     # Sample data
     x_traj, y_traj, x_rand, y_rand = gen_sine_data(tasks=tasks,
                                                    n_functions=n_functions,
@@ -118,7 +116,7 @@ for epoch in t:
         with train_summary_writer.as_default():
             tf.summary.scalar('Sparsity', sparsity, step=epoch)
             tf.summary.scalar('Training loss', loss, step=epoch)
-        t.set_description(f"Sparsity: {sparsity}\tTraining loss: {loss}")
+        print(f"Sparsity: {sparsity}\tTraining loss: {loss}")
 
     # Save model every "save_models_every" epochs
     if epoch % args.save_models_every == 0 and epoch > 0:
