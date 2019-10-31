@@ -25,12 +25,17 @@ argument_parser.add_argument("--epochs", type=int, default=20000,
                              help="number of epochs to pre train for")
 argument_parser.add_argument("--n_tasks", type=int, default=400,
                              help="number of tasks to pre train from")
+argument_parser.add_argument("--val_tasks", type=int, default=400,
+                             help="number of validation tasks to train and evaluate from")
 argument_parser.add_argument("--n_functions", type=int, default=10,
                              help="number of functions to sample per epoch")
 argument_parser.add_argument("--sample_length", type=int, default=32,
                              help="length of each sequence sampled")
 argument_parser.add_argument("--repetitions", type=int, default=40,
-                             help="number of train repetitions for generating"
+                             help="number of pre train repetitions for generating"
+                                  " the data samples")
+argument_parser.add_argument("--val_repetitions", type=int, default=50,
+                             help="number of validation train repetitions for generating"
                                   " the data samples")
 argument_parser.add_argument("--save_models_every", type=int, default=100,
                              help="Amount of epochs to pass before saving"
@@ -60,7 +65,7 @@ from experiments.evaluation import train_and_evaluate
 from experiments.training import copy_parameters
 
 tasks = gen_tasks(args.n_tasks)  # Generate tasks parameters
-val_tasks = gen_tasks(500)
+val_tasks = gen_tasks(args.val_tasks)
 loss_fun = tf.keras.losses.MeanSquaredError()
 
 # Create logs directories
@@ -83,18 +88,27 @@ meta_optimizer = tf.keras.optimizers.Adam(learning_rate=mlr)
 # iteration
 tln_copy = tf.keras.models.clone_model(tln)
 
-_, _, x_val, y_val = gen_sine_data(tasks=val_tasks,
-                                   n_functions=args.n_functions,
-                                   sample_length=args.sample_length,
-                                   repetitions=args.repetitions)
+# Validation and online training data
+x_train, y_train, x_val, y_val = gen_sine_data(val_tasks,
+                                               args.n_functions,
+                                               args.sample_length,
+                                               args.val_repetitions)
 
 # Reshape for inputting to training method
-x_val = np.vstack(x_val)
-y_val = np.hstack(y_val)
+x_train = np.transpose(x_train, (1, 2, 0, 3))
+y_train = np.transpose(y_train, (1, 2, 0))
+x_train = np.reshape(x_train, (args.val_repetitions * args.sample_length,
+                               args.n_functions, -1))
+y_train = np.reshape(y_train, (args.val_repetitions * args.sample_length,
+                               args.n_functions))
+x_train = np.transpose(x_train, (1, 0, 2))
+y_train = np.transpose(y_train, (1, 0))
 
 # Numpy -> Tensorflow
 x_val = tf.convert_to_tensor(x_val, dtype=tf.float32)
 y_val = tf.convert_to_tensor(y_val, dtype=tf.float32)
+x_train = tf.convert_to_tensor(x_train, dtype=tf.float32)
+y_train = tf.convert_to_tensor(y_train, dtype=tf.float32)
 
 n_functions = args.n_functions
 sl = args.sample_length
@@ -140,15 +154,8 @@ for epoch in range(args.epochs):
         with train_summary_writer.as_default():
             tf.summary.scalar('Sparsity', sparsity, step=epoch)
             tf.summary.scalar('Training loss', loss, step=epoch)
-        print(f"Epoch: {epoch}\tSparsity: {sparsity}\tTraining loss: {loss}")
 
-    # Save model every "save_models_every" epochs
-    if epoch % args.save_models_every == 0 and epoch > 0:
-        save_models(model=rln, name=f"isw_mrcl_rln")
-        save_models(model=tln, name=f"isw_mrcl_tln")
-
-    if epoch % args.post_results_every == 0:
-        x = x_val
+        x = tf.reshape(x_val, [-1, 11])
         rep = rln(x)
         rep_len = rep.shape[-1]
         rep_f1, rep_f2 = factor_int(rep_len)
@@ -157,28 +164,6 @@ for epoch in range(args.epochs):
         rep = tf.random.shuffle(tf.stack(rep))
         with train_summary_writer.as_default():
             tf.summary.image("representation", rep, epoch)
-
-    if epoch % args.post_results_every == 0:
-        x_train, y_train, x_val, y_val = gen_sine_data(val_tasks,
-                                                       args.n_functions,
-                                                       args.sample_length,
-                                                       args.repetitions)
-
-        # Reshape for inputting to training method
-        x_train = np.transpose(x_train, (1, 2, 0, 3))
-        y_train = np.transpose(y_train, (1, 2, 0))
-        x_train = np.reshape(x_train, (args.repetitions * args.sample_length,
-                                       args.n_functions, -1))
-        y_train = np.reshape(y_train, (args.repetitions * args.sample_length,
-                                       args.n_functions))
-        x_train = np.transpose(x_train, (1, 0, 2))
-        y_train = np.transpose(y_train, (1, 0))
-
-        # Numpy -> Tensorflow
-        x_val = tf.convert_to_tensor(x_val, dtype=tf.float32)
-        y_val = tf.convert_to_tensor(y_val, dtype=tf.float32)
-        x_train = tf.convert_to_tensor(x_train, dtype=tf.float32)
-        y_train = tf.convert_to_tensor(y_train, dtype=tf.float32)
 
         copy_parameters(tln, tln_copy)
 
@@ -194,11 +179,23 @@ for epoch in range(args.epochs):
                                      x_val=x_val, y_val=y_val, rln=rln,
                                      tln=tln_copy, optimizer=eval_optimizer,
                                      loss_function=loss_fun,
-                                     batch_size=8)
+                                     batch_size=8, epochs=1)
         loss_classes_seen, interference = results
+        loss_interference = sum([v for v in interference.values()])
+        loss_interference /= len(interference)
+        with train_summary_writer.as_default():
+            tf.summary.scalar('Validation loss',
+                              loss_interference,
+                              step=epoch)
+        print(f"Epoch: {epoch}\tSparsity: {sparsity}\tInterference loss: {loss_interference}")
 
-        json.dump(loss_classes_seen, "./results/isw_mrcl/isw_mrcl_eval_0.003_3_pretraining_0.003_{epoch}_3a.json")
-        json.dump(interference, "./results/isw_mrcl/isw_mrcl_eval_0.003_3_pretraining_0.003_{epoch}_3b.json")
+        json.dump(loss_classes_seen, open("./results/isw_mrcl/isw_mrcl_eval_0.003_3_pretraining_0.003_{epoch}_3a.json", "w"))
+        json.dump(interference, open("./results/isw_mrcl/isw_mrcl_eval_0.003_3_pretraining_0.003_{epoch}_3b.json", "w"))
+
+    # Save model every "save_models_every" epochs
+    if epoch % args.save_models_every == 0 and epoch > 0:
+        save_models(model=rln, name=f"isw_mrcl_rln")
+        save_models(model=tln, name=f"isw_mrcl_tln")
 
 
 # Save final model
