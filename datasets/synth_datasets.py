@@ -68,7 +68,7 @@ def gen_sine_data(tasks, n_functions=10, sample_length=32, repetitions=40, n_ids
             x_traj[ind, repetition, :, 0] = list_of_z_traj[ind, repetition]
             x_traj[ind, repetition, :, 1 + (ind // 10) % 10] = 1
 
-        y_rand[ind, :] = np.sin(list_of_z_rand[ind, 0] + phase[ind]) * amplitude[ind]
+        y_rand[ind, :] = np.sin(list_of_z_rand[ind] + phase[ind]) * amplitude[ind]
         x_rand[ind, :, 0] = list_of_z_rand[ind]
         x_rand[ind, :, 1 + (ind // 10) % 10] = 1
 
