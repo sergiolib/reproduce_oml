@@ -1,3 +1,4 @@
+import json
 import math
 
 def factor_int(n):
@@ -40,6 +41,8 @@ argument_parser.add_argument("--post_results_every", type=int, default=50,
 argument_parser.add_argument("--resetting_last_layer", default=True, type=bool,
                              help="Reinitialization of the last layer of"
                                   " the TLN")
+argument_parser.add_argument("--representation_size", default=900, type=int,
+                             help="Size of representations")
 
 args = argument_parser.parse_args()
 
@@ -52,9 +55,12 @@ import tensorflow as tf
 from datasets.synth_datasets import gen_sine_data, gen_tasks
 from experiments.exp4_2.isw import mrcl_isw
 from experiments.training import pretrain_mrcl, save_models
+from experiments.evaluation import train_and_evaluate
+
+from experiments.training import copy_parameters
 
 tasks = gen_tasks(args.n_tasks)  # Generate tasks parameters
-val_tasks = gen_tasks(args.n_functions)
+val_tasks = gen_tasks(500)
 loss_fun = tf.keras.losses.MeanSquaredError()
 
 # Create logs directories
@@ -64,7 +70,7 @@ os.makedirs(train_log_dir, exist_ok=True)
 
 # Main pre training loop
 # Create and initialize models
-rln, tln = mrcl_isw(one_hot_depth=args.n_functions)
+rln, tln = mrcl_isw(one_hot_depth=args.n_functions, representation_size=args.representation_size)
 
 # Create file writer for Tensorboard (logdir = ./logs/isw)
 train_summary_writer = tf.summary.create_file_writer(train_log_dir)
@@ -75,7 +81,7 @@ meta_optimizer = tf.keras.optimizers.Adam(learning_rate=mlr)
 
 # Fabricate TLN clone for storing the parameters at the beginning of each
 # iteration
-tln_initial = tf.keras.models.clone_model(tln)
+tln_copy = tf.keras.models.clone_model(tln)
 
 _, _, x_val, y_val = gen_sine_data(tasks=val_tasks,
                                    n_functions=args.n_functions,
@@ -93,6 +99,9 @@ y_val = tf.convert_to_tensor(y_val, dtype=tf.float32)
 n_functions = args.n_functions
 sl = args.sample_length
 reps = args.repetitions
+
+eval_optimizer = tf.keras.optimizers.SGD(learning_rate=0.003)
+
 for epoch in range(args.epochs):
     # Sample data
     x_traj, y_traj, x_rand, y_rand = gen_sine_data(tasks=tasks,
@@ -115,7 +124,7 @@ for epoch in range(args.epochs):
     # Pretrain step
     loss = pretrain_mrcl(x_traj=x_traj, y_traj=y_traj,
                          x_rand=x_rand, y_rand=y_rand,
-                         rln=rln, tln=tln, tln_initial=tln_initial,
+                         rln=rln, tln=tln, tln_initial=tln_copy,
                          meta_optimizer=meta_optimizer,
                          loss_function=loss_fun,
                          beta=args.inner_learning_rate,
@@ -148,6 +157,49 @@ for epoch in range(args.epochs):
         rep = tf.random.shuffle(tf.stack(rep))
         with train_summary_writer.as_default():
             tf.summary.image("representation", rep, epoch)
+
+    if epoch % args.post_results_every == 0:
+        x_train, y_train, x_val, y_val = gen_sine_data(val_tasks,
+                                                       args.n_functions,
+                                                       args.sample_length,
+                                                       args.repetitions)
+
+        # Reshape for inputting to training method
+        x_train = np.transpose(x_train, (1, 2, 0, 3))
+        y_train = np.transpose(y_train, (1, 2, 0))
+        x_train = np.reshape(x_train, (args.repetitions * args.sample_length,
+                                       args.n_functions, -1))
+        y_train = np.reshape(y_train, (args.repetitions * args.sample_length,
+                                       args.n_functions))
+        x_train = np.transpose(x_train, (1, 0, 2))
+        y_train = np.transpose(y_train, (1, 0))
+
+        # Numpy -> Tensorflow
+        x_val = tf.convert_to_tensor(x_val, dtype=tf.float32)
+        y_val = tf.convert_to_tensor(y_val, dtype=tf.float32)
+        x_train = tf.convert_to_tensor(x_train, dtype=tf.float32)
+        y_train = tf.convert_to_tensor(y_train, dtype=tf.float32)
+
+        copy_parameters(tln, tln_copy)
+
+        if args.resetting_last_layer:
+            # Random reinitialization of last layer
+            w = tln_copy.layers[-1].weights[0]
+            b = tln_copy.layers[-1].weights[1]
+            new_w = tf.keras.initializers.he_normal()(shape=w.shape)
+            w.assign(new_w)
+            new_b = tf.keras.initializers.zeros()(shape=b.shape)
+            b.assign(new_b)
+        results = train_and_evaluate(x_train=x_train, y_train=y_train,
+                                     x_val=x_val, y_val=y_val, rln=rln,
+                                     tln=tln_copy, optimizer=eval_optimizer,
+                                     loss_function=loss_fun,
+                                     batch_size=8)
+        loss_classes_seen, interference = results
+
+        json.dump(loss_classes_seen, "./results/isw_mrcl/isw_mrcl_eval_0.003_3_pretraining_0.003_{epoch}_3a.json")
+        json.dump(interference, "./results/isw_mrcl/isw_mrcl_eval_0.003_3_pretraining_0.003_{epoch}_3b.json")
+
 
 # Save final model
 save_models(model=rln, name=f"isw_mrcl_rln")
