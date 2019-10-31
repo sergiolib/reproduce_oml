@@ -7,7 +7,7 @@ def compute_loss(x, y, loss_function, tln, rln):
 
 
 def train_and_evaluate(x_train, y_train, x_val, y_val, rln, tln, optimizer,
-                       loss_function, batch_size, epochs=1000):
+                       loss_function, batch_size, epochs=1):
     # For every class
     results_3a = {}
     results_3b = {}
