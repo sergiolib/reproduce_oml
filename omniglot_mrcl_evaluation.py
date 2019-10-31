@@ -9,13 +9,7 @@ from datasets.tf_datasets import load_omniglot
 from parameters import classification_parameters
 
 
-def evaluate(model_name, oracle=True):
-
-    if oracle:
-        model_type = "oracle"
-    else:
-        model_type = "mrcl"
-
+def evaluate(model_name, model_type="mrcl"):
     _, evaluation_data = load_omniglot(verbose=1)
     evaluation_training_data, evaluation_test_data = get_eval_data_by_classes(evaluation_data)
     save_dir = "results/omniglot/" + model_type

@@ -1,5 +1,6 @@
 from sklearn.preprocessing import normalize
 import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from datasets.synth_datasets import gen_tasks, gen_sine_data
 
 
@@ -11,7 +12,11 @@ def visualize(representation):
     representation = representation.reshape((32, 72))
     representation = normalize(representation)
     plt.axis('off')
-    plt.imshow(representation)
+    pos = plt.imshow(representation, cmap="YlGn")
+
+    divider = make_axes_locatable(plt.gca())
+    cax = divider.append_axes("right", size="5%", pad=0.05)
+    plt.gcf().colorbar(pos, cax=cax)
     plt.show()
 
 

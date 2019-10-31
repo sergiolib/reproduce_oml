@@ -32,7 +32,7 @@ y_testing = tf.convert_to_tensor(y_testing)
 t = range(100)
 current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
-learning_rates = [0.01, 0.001, 0.0001, 0.00001]
+learning_rates = [0.001, 0.0001, 0.00001]
 for lr in learning_rates:
     rln, tln = mrcl_omniglot()
     train_log_dir = f'logs/omniglot_{lr}/' + current_time + '/pre_train'
