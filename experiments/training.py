@@ -26,6 +26,7 @@ def save_models(model, name):
     model.save(f"saved_models/{name}.tf", save_format="tf")
 
 
+@tf.function
 def inner_update(x, y, tln, rln, beta, loss_fun):
     with tf.GradientTape(watch_accessed_variables=False) as Wj_Tape:
         Wj_Tape.watch(tln.trainable_variables)

@@ -31,6 +31,7 @@ def train_and_evaluate(x_train, y_train, x_val, y_val, rln, tln, optimizer,
 
             output_loss = 0
             i = 0
+
             for x, y in tf.data.Dataset.from_tensor_slices((x_val_classes_seen, y_val_classes_seen)):
                 output_loss += compute_loss(x, y, loss_function, tln, rln)
                 i += 1
