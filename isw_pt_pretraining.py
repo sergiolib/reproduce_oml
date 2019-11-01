@@ -94,12 +94,12 @@ args.sample_length, args.pt_repetitions)
 
         # Save model every "save_models_every" epochs
         if epoch % args.save_models_every == 0 and epoch > 0:
-            save_models(model=rln, name=model_prefix + f"_rln")
-            save_models(model=tln, name=model_prefix + f"_tln")
+            save_models(model=pb.model_rln, name=model_prefix + f"_rln")
+            save_models(model=pb.model_tln, name=model_prefix + f"_tln")
 
     # Save final model
-    save_models(model=rln, name=model_prefix + f"_rln")
-    save_models(model=tln, name=model_prefix + f"_tln")
+    save_models(model=pb.model_rln, name=model_prefix + f"_rln")
+    save_models(model=pb.model_tln, name=model_prefix + f"_tln")
 
 if __name__ == '__main__':
     # Parse arguments
