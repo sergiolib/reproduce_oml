@@ -111,3 +111,21 @@ def prepare_data_pre_training(tasks, n_functions, sample_length, repetitions):
     y_traj = tf.convert_to_tensor(y_traj, dtype=tf.float32)
 
     return x_traj, y_traj, x_rand, y_rand
+
+
+def to_iid(x1, y1, n_functions, sample_length, repetitions):
+    import pdb; pdb.set_trace()
+    # Reshape to 2D
+    x1_t = tf.reshape(x1, [-1, n_functions + 1])
+    y1_t = tf.reshape(y1, [-1,])
+
+    indexes = np.random.permutation(len(x1_t))
+
+    x1_t = tf.gather(x1_t, indexes)
+    y1_t = tf.gather(y1_t, indexes)
+
+    # Reshape back
+    x1 = tf.reshape(x1_t, [10 * repetitions, sample_length, n_functions + 1])
+    y1 = tf.reshape(y1_t, [10 * repetitions, sample_length])
+
+    return x1, y1
