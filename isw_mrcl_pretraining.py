@@ -2,7 +2,7 @@ import argparse
 
 import datetime
 import os
-
+import tqdm
 import tensorflow as tf
 
 from datasets.synth_datasets import gen_tasks
@@ -52,7 +52,7 @@ def main(args):
 
     eval_optimizer = tf.keras.optimizers.SGD(learning_rate=0.003)
 
-    for epoch in range(args.epochs):
+    for epoch in tqdm.trange(args.epochs):
         tr_data = prepare_data_pre_training(tr_tasks,
                                             args.n_functions,
                                             args.sample_length,

@@ -114,7 +114,6 @@ def prepare_data_pre_training(tasks, n_functions, sample_length, repetitions):
 
 
 def to_iid(x1, y1, n_functions, sample_length, repetitions):
-    import pdb; pdb.set_trace()
     # Reshape to 2D
     x1_t = tf.reshape(x1, [-1, n_functions + 1])
     y1_t = tf.reshape(y1, [-1,])

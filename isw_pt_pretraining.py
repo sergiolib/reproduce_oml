@@ -4,7 +4,7 @@ import math
 
 import datetime
 import os
-
+import tqdm
 import numpy as np
 import tensorflow as tf
 
@@ -50,7 +50,7 @@ def main(args):
 
     eval_optimizer = tf.keras.optimizers.SGD(learning_rate=0.003)
 
-    for epoch in range(args.epochs):
+    for epoch in tqdm.trange(args.epochs):
         tr_data = prepare_data_pre_training(tr_tasks,
                                             args.n_functions,
                                             args.sample_length,
