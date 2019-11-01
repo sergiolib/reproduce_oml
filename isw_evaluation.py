@@ -40,7 +40,7 @@ def parse_args():
                                  default=0.000003, type=float,
                                  help="Learning rate(s) to try")
     argument_parser.add_argument("--results_dir",
-                                 default="./results/basic_pt_isw/", type=str,
+                                 default="./results/{}/", type=str,
                                  help="Evaluation results file")
     argument_parser.add_argument("--resetting_last_layer", default=True,
                                  type=bool, help="Reinitialization of the last"
@@ -49,45 +49,6 @@ def parse_args():
                                  help="Seed for the random functions")
 
     args = argument_parser.parse_args()
-    return args
-
-def parse_args_dbg():
-    argument_parser = argparse.ArgumentParser()
-    # argument_parser.add_argument("model_name", type=str,
-    #                              help="Model name")
-    argument_parser.add_argument("--n_tasks", default=500, type=int,
-                                 help="Number of tasks to pre train from")
-    argument_parser.add_argument("--n_functions", default=10, type=int,
-                                 help="Number of functions to sample per epoch")
-    argument_parser.add_argument("--sample_length", default=32, type=int,
-                                 help="Length of each sequence sampled")
-    argument_parser.add_argument("--repetitions", default=50, type=int,
-                                 help="Number of train repetitions for"
-                                      "generating the data samples")
-    argument_parser.add_argument("--batch_size_evaluation", default=8, type=int,
-                                 help="Batch size for evaluation stage training")
-    argument_parser.add_argument("--tests", default=50, type=int,
-                                 help="Times to test and get results / "
-                                      "number of random trajectories")
-    argument_parser.add_argument("--model_file_rln", default="/home/sliberman/Desktop/saved_models/isw_basicpt_rln.tf"
-                                 "", type=str,
-                                 help="Model file for the rln")
-    argument_parser.add_argument("--model_file_tln", default="/home/sliberman/Desktop/saved_models/isw_basicpt_rln.tf", type=str,
-                                 help="Model file for the tln")
-    argument_parser.add_argument("--learning_rate", nargs="+",
-                                 default=0.000003, type=float,
-                                 help="Learning rate(s) to try")
-    argument_parser.add_argument("--results_dir",
-                                 default="./results/basic_pt_isw/", type=str,
-                                 help="Evaluation results file")
-    argument_parser.add_argument("--resetting_last_layer", default=True,
-                                 type=bool, help="Reinitialization of the last"
-                                                 " layer of the TLN")
-    argument_parser.add_argument("--seed", default=0, type=int,
-                                 help="Seed for the random functions")
-
-    args = argument_parser.parse_args()
-    args.model_name = "sergio"
     return args
 
 def main(args):
@@ -100,7 +61,7 @@ def main(args):
 
     # Create logs directories
     current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    train_log_dir = 'logs/pt_isw/' + current_time + '/eval'
+    train_log_dir = 'logs/eval_isw/' + current_time + '/eval'
     os.makedirs(train_log_dir, exist_ok=True)
 
     # Find a good learning rate from the given ones to iterate many times on
@@ -195,6 +156,7 @@ def main(args):
         all_3a_results.append(loss_per_class_during_training)
         all_3b_results.append(interference_losses)
 
+    args.results_dir = args.results_dir.format(args.model_name)
     location = os.path.join(args.results_dir, f"isw_{args.model_name}"
                                               f"losses_{lr}.json")
     os.makedirs(os.path.dirname(location), exist_ok=True)
@@ -208,5 +170,4 @@ def main(args):
 
 if __name__ == '__main__':
     args = parse_args()
-    #args = parse_args_dbg()
     main(args)
