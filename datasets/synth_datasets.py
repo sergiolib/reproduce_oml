@@ -25,7 +25,8 @@ def gen_tasks(number_of_tasks):
             "phase": np.random.uniform(phase_min, phase_max, size=number_of_tasks)}
 
 
-def gen_sine_data(tasks, n_functions=10, sample_length=32, repetitions=40, n_ids=10, seed=None):
+def gen_sine_data(tasks, n_functions=10, sample_length=32, repetitions=40,
+                  n_ids=10, seed=None):
     """
     Generate synthetic Incremental Sine Waves as defined in section 4.1
     :param seed: Seed

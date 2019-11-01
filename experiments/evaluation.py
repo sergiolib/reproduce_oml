@@ -36,7 +36,8 @@ def train_and_evaluate(x_train, y_train, x_val, y_val, rln, tln, optimizer,
             i = 0
 
             for x, y in tf.data.Dataset.from_tensor_slices((x_val_classes_seen, y_val_classes_seen)):
-                output_loss += compute_loss(x, y, loss_function, tln, rln)
+                loss = compute_loss(x, y, loss_function, tln, rln)
+                output_loss += loss
                 i += 1
             output_loss /= i
 
@@ -56,10 +57,11 @@ def train_and_evaluate(x_train, y_train, x_val, y_val, rln, tln, optimizer,
                                                         y_val_classes_seen))
         i = 0
         for x, y in data_iter:
-            output_loss += float(compute_loss(x, y, loss_function, tln, rln))
+            loss = compute_loss(x, y, loss_function, tln, rln)
+            output_loss += loss
             i += 1
         output_loss /= i
-        results_3a[cls + 1] = output_loss
+        results_3a[cls + 1] = float(output_loss)
 
     x_val_classes_seen = x_val
     y_val_classes_seen = y_val
@@ -67,7 +69,8 @@ def train_and_evaluate(x_train, y_train, x_val, y_val, rln, tln, optimizer,
     data_iter = tf.data.Dataset.from_tensor_slices((x_val_classes_seen,
                                                     y_val_classes_seen))
     for i, (x, y) in enumerate(data_iter):
-        results_3b[i + 1] = float(compute_loss(x, y, loss_function, tln, rln))
+        results_3b[i + 1] = float(compute_loss(x, y, loss_function,
+                                               tln, rln))
 
     # Results_3a: Mean Squared Error of classes seen so far
     # Results_3b: Mean Squared Error of each class in the end
@@ -97,26 +100,30 @@ def evaluate_models_isw(x_train, y_train, x_val, y_val, tln, rln,
     return mean_loss_all_val, loss_per_class_during_training, interference_losses
 
 
-def prepare_data_evaluation(tasks, n_functions, sample_length, repetitions):
-    x_train, y_train, x_val, y_val = gen_sine_data(tasks, n_functions,
-                                                   sample_length,
-                                                   repetitions)
+def prepare_data_evaluation(tasks, n_functions, sample_length, repetitions,
+                            seed=None):
+
+    data = gen_sine_data(tasks, n_functions, sample_length, repetitions,
+                         seed=seed)
+
+    x_train_f_r_s_x, y_train_f_r_s, x_val_f_s_x, y_val_f_s = data
 
     # Reshape for inputting to training method
-    x_train = np.transpose(x_train, (1, 2, 0, 3))
-    y_train = np.transpose(y_train, (1, 2, 0))
-    x_train = np.reshape(x_train, (repetitions * sample_length, n_functions, -1))
-    y_train = np.reshape(y_train, (repetitions * sample_length, n_functions))
-    x_train = np.transpose(x_train, (1, 0, 2))
-    y_train = np.transpose(y_train, (1, 0))
+    x_train_r_s_f_x = np.transpose(x_train_f_r_s_x, (1, 2, 0, 3))
+    y_train_r_s_f = np.transpose(y_train_f_r_s, (1, 2, 0))
+    x_train_rs_f_x = np.reshape(x_train_r_s_f_x, (repetitions * sample_length,
+                                                  n_functions, -1))
+    y_train_rs_f = np.reshape(y_train_r_s_f, (repetitions * sample_length, n_functions))
+    x_train_f_rs_x = np.transpose(x_train_rs_f_x, (1, 0, 2))
+    y_train_f_rs = np.transpose(y_train_rs_f, (1, 0))
 
     # Numpy -> Tensorflow
-    x_val = tf.convert_to_tensor(x_val, dtype=tf.float32)
-    y_val = tf.convert_to_tensor(y_val, dtype=tf.float32)
-    x_train = tf.convert_to_tensor(x_train, dtype=tf.float32)
-    y_train = tf.convert_to_tensor(y_train, dtype=tf.float32)
+    x_train_f_rs_x = tf.convert_to_tensor(x_train_f_rs_x, dtype=tf.float32)
+    y_train_f_rs = tf.convert_to_tensor(y_train_f_rs, dtype=tf.float32)
+    x_val_f_s_x = tf.convert_to_tensor(x_val_f_s_x, dtype=tf.float32)
+    y_val_f_s = tf.convert_to_tensor(y_val_f_s, dtype=tf.float32)
 
-    return x_train, y_train, x_val, y_val
+    return x_train_f_rs_x, y_train_f_rs, x_val_f_s_x, y_val_f_s
 
 def compute_sparsity(x, rln, tln):
     rep = rln(x)
