@@ -125,7 +125,7 @@ if __name__ == '__main__':
     argument_parser.add_argument("--save_models_every", type=int, default=100,
                                  help="Amount of epochs to pass before saving"
                                       " models")
-    argument_parser.add_argument("--post_results_every", type=int, default=200,
+    argument_parser.add_argument("--post_results_every", type=int, default=1000,
                                  help="Amount of epochs to pass before posting"
                                       " results in Tensorboard")
     argument_parser.add_argument("--resetting_last_layer", default=True, type=bool,

@@ -65,7 +65,7 @@ def main(args):
                                 rln=rln, tln=tln, tln_initial=tln_copy,
                                 meta_optimizer=meta_optimizer,
                                 loss_function=loss_fun,
-                                beta=args.inner_learning_rate / 10,
+                                beta=args.inner_learning_rate,
                                 reset_last_layer=args.resetting_last_layer)
         # Check metrics for Tensorboard to be included every
         # "post_results_every" epochs
@@ -135,7 +135,7 @@ if __name__ == '__main__':
     argument_parser.add_argument("--save_models_every", type=int, default=100,
                                  help="Amount of epochs to pass before saving"
                                       " models")
-    argument_parser.add_argument("--post_results_every", type=int, default=200,
+    argument_parser.add_argument("--post_results_every", type=int, default=1000,
                                  help="Amount of epochs to pass before posting"
                                       " results in Tensorboard")
     argument_parser.add_argument("--resetting_last_layer", default=True,
