@@ -25,7 +25,8 @@ def gen_tasks(number_of_tasks):
             "phase": np.random.uniform(phase_min, phase_max, size=number_of_tasks)}
 
 
-def gen_sine_data(tasks, n_functions=10, sample_length=32, repetitions=40, seed=None):
+def gen_sine_data(tasks, n_functions=10, sample_length=32, repetitions=40,
+                  n_ids=10, seed=None):
     """
     Generate synthetic Incremental Sine Waves as defined in section 4.1
     :param seed: Seed
@@ -37,10 +38,12 @@ def gen_sine_data(tasks, n_functions=10, sample_length=32, repetitions=40, seed=
     :type sample_length: int
     :param repetitions: number of repetitions of each task
     :type repetitions: int
+    :param n_ids: number of ids to generate
+    :type n_ids: int
     :return: x trajectory samples, y trajectory samples, x random samples, y random samples
-    :rtype numpy.ndarray (n_functions * repetitions x sample_length x dim),
+    :rtype numpy.ndarray (n_functions * repetitions x sample_length x n_ids),
            numpy.ndarray (n_functions * repetitions x sample_length),
-           numpy.ndarray (n_functions x sample_length x dim),
+           numpy.ndarray (n_functions x sample_length x n_ids),
            numpy.ndarray (n_functions x sample_length)
     """
     random.seed(seed)
@@ -54,8 +57,8 @@ def gen_sine_data(tasks, n_functions=10, sample_length=32, repetitions=40, seed=
     list_of_z_rand = np.random.uniform(z_min, z_max, size=(n_functions, sample_length))
 
     # Initialize input arrays
-    x_traj = np.zeros(shape=(n_functions, repetitions, sample_length, n_functions + 1))
-    x_rand = np.zeros(shape=(n_functions, sample_length, n_functions + 1))
+    x_traj = np.zeros(shape=(n_functions, repetitions, sample_length, n_ids + 1))
+    x_rand = np.zeros(shape=(n_functions, sample_length, n_ids + 1))
     y_traj = np.zeros(shape=(n_functions, repetitions, sample_length))
     y_rand = np.zeros(shape=(n_functions, sample_length))
 
@@ -64,10 +67,10 @@ def gen_sine_data(tasks, n_functions=10, sample_length=32, repetitions=40, seed=
         for repetition in range(repetitions):
             y_traj[ind, repetition, :] = np.sin(list_of_z_traj[ind, repetition] + phase[ind]) * amplitude[ind]
             x_traj[ind, repetition, :, 0] = list_of_z_traj[ind, repetition]
-            x_traj[ind, repetition, :, 1 + ind] = 1
+            x_traj[ind, repetition, :, 1 + (ind // 10) % 10] = 1
 
-        y_rand[ind, :] = np.sin(list_of_z_rand[ind, 0] + phase[ind]) * amplitude[ind]
+        y_rand[ind, :] = np.sin(list_of_z_rand[ind] + phase[ind]) * amplitude[ind]
         x_rand[ind, :, 0] = list_of_z_rand[ind]
-        x_rand[ind, :, 1 + ind] = 1
+        x_rand[ind, :, 1 + (ind // 10) % 10] = 1
 
     return x_traj, y_traj, x_rand, y_rand

@@ -1,112 +1,138 @@
 import argparse
-import datetime
-from itertools import product
-from os import makedirs
+import json
+import math
 
+import datetime
+import os
+import tqdm
 import numpy as np
 import tensorflow as tf
-import random
-import tqdm
 
-from baseline_methods.pretraining import PretrainingBaseline
 from datasets.synth_datasets import gen_sine_data, gen_tasks
+from experiments.exp4_2.isw import mrcl_isw
+from experiments.training import pretrain_mrcl, save_models, to_iid
+from experiments.training import copy_parameters, prepare_data_pre_training
+from experiments.evaluation import evaluate_models_isw, prepare_data_evaluation
+from experiments.evaluation import compute_sparsity, get_representations_graphics
+from baseline_methods.pretraining import PretrainingBaseline
 
-gpus = tf.config.experimental.list_physical_devices('GPU')
-if len(gpus) > 0:
-    tf.config.experimental.set_virtual_device_configuration(gpus[0], [
-        tf.config.experimental.VirtualDeviceConfiguration(memory_limit=1024)])
 
-# Parse arguments
-argument_parser = argparse.ArgumentParser()
-argument_parser.add_argument("--learning_rate", nargs="+", type=float, default=[3e-6],
-                             help="Learning rate")
-argument_parser.add_argument("--epochs", type=int, default=10000,
-                             help="Number of epochs to pre train for")
-argument_parser.add_argument("--n_tasks", type=int, default=400,
-                             help="Number of tasks to pre train from")
-argument_parser.add_argument("--n_functions", type=int, default=10,
-                             help="Number of functions to sample per epoch")
-argument_parser.add_argument("--sample_length", type=int, default=32,
-                             help="Length of each sequence sampled")
-argument_parser.add_argument("--repetitions", type=int, default=40,
-                             help="Number of train repetitions for generating the data samples")
-argument_parser.add_argument("--save_models_every", type=int, default=100,
-                             help="Amount of epochs to pass before saving models")
-argument_parser.add_argument("--check_val_every", type=int, default=100,
-                             help="Amount of epochs to pass before checking validation loss")
-argument_parser.add_argument("--layers_rln", type=int, nargs="+", default=6,
-                             help="Amount of layers in the RLN and TLN")
+model_prefix = "isw_basicpt"
 
-args = argument_parser.parse_args()
+def main(args):
+    tr_tasks = gen_tasks(args.n_tasks)  # Generate tasks parameters
+    val_tasks = gen_tasks(args.val_tasks)
+    loss_fun = tf.keras.losses.MeanSquaredError()
 
-train_tasks = gen_tasks(args.n_functions)  # Generate tasks parameters
-val_tasks = gen_tasks(args.n_functions)
+    # Create logs directories
+    current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    train_log_dir = "/".join(["logs", model_prefix, current_time, "train"])
+    os.makedirs(train_log_dir, exist_ok=True)
 
-_, _, x_val, y_val = gen_sine_data(tasks=val_tasks, n_functions=args.n_functions,
-                                   sample_length=args.sample_length,
-                                   repetitions=args.repetitions, seed=0)
+    # Main pre training loop
+    # Create and initialize models
+    pb = PretrainingBaseline(tf.keras.losses.MeanSquaredError())
+    pb.build_isw_model()
 
-# Numpy -> Tensorflow
-x_val = tf.convert_to_tensor(x_val, dtype=tf.float32)
-y_val = tf.convert_to_tensor(y_val, dtype=tf.float32)
-
-# Main pre training loop
-loss = float("inf")
-# Create logs directories
-current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-layers_rln = args.layers_rln if type(args.layers_rln) is list else [args.layers_rln]
-gen = product(layers_rln, args.learning_rate)
-gen = list(gen)
-random.shuffle(gen)
-for layers_rln, lr in tqdm.tqdm(gen):
-    layers_tln = 8 - layers_rln
-    print(f"rln: {layers_rln}, tln: {layers_tln}, lr: {lr}")
-    train_log_dir = f'logs/pt_isw_lr{lr}_rln{layers_rln}_tln{layers_tln}/' + current_time + '/pre_train'
-    makedirs(train_log_dir, exist_ok=True)
+    # Create file writer for Tensorboard (logdir = ./logs/isw)
     train_summary_writer = tf.summary.create_file_writer(train_log_dir)
-    tf.keras.backend.clear_session()
-    p = PretrainingBaseline(tf.keras.losses.MeanSquaredError())
-    p.build_model(n_layers_rln=layers_rln, n_layers_tln=layers_tln, seed=0)
-    val_loss_counts = 0
-    previous_val_loss = p.compute_loss(x_val, y_val)
-    with train_summary_writer.as_default():
-        tf.summary.scalar("Validation Loss", previous_val_loss, step=0)
-    val_loss = None
-    for epoch in range(args.epochs):
-        x_train, y_train, _, _ = gen_sine_data(tasks=train_tasks, n_functions=args.n_functions,
-                                               sample_length=args.sample_length,
-                                               repetitions=args.repetitions, seed=epoch)
 
-        # Reshape for inputting to training method
-        x_train = np.vstack(x_train)
-        y_train = np.vstack(y_train)
+    # Fabricate TLN clone for storing the parameters at the beginning of each
+    # iteration
+    tln_copy = tf.keras.models.clone_model(pb.model_tln)
 
-        # According to figure 3, data comes IID
-        indices = np.random.permutation(len(x_train))
-        x_train = x_train[indices]
-        y_train = y_train[indices]
+    # Validation and online training data
+    val_data = prepare_data_evaluation(val_tasks,
+                                       args.n_functions,
+                                       args.sample_length,
+                                       args.val_repetitions)
+    x_train, y_train, x_val, y_val = val_data
 
-        # Numpy -> Tensorflow
-        x_train = tf.convert_to_tensor(x_train, dtype=tf.float32)
-        y_train = tf.convert_to_tensor(y_train, dtype=tf.float32)
-        x_train = tf.reshape(x_train, (-1, args.n_functions + 1))
-        y_train = tf.reshape(y_train, (-1,))
+    eval_optimizer = tf.keras.optimizers.SGD(learning_rate=0.003)
 
-        training_loss = float(p.pre_train(x_train, y_train, learning_rate=lr))
+    for epoch in tqdm.trange(args.epochs):
+        tr_data = prepare_data_pre_training(tr_tasks,
+                                            args.n_functions,
+                                            args.sample_length,
+                                            args.pt_repetitions)
+        x_traj, y_traj, _, _ = tr_data
+        x_traj, y_traj = to_iid(x_traj, y_traj, args.n_functions,
+args.sample_length, args.pt_repetitions)
 
-        if epoch % args.check_val_every == 0:
+        # Pretrain step
+        pt_loss = pb.pre_train(x_traj, y_traj, args.learning_rate)
+
+        # Check metrics for Tensorboard to be included every
+        # "post_results_every" epochs
+        if epoch % args.post_results_every == 0:
+            sparsity = compute_sparsity(x_val, pb.model_rln, pb.model_tln)
+
             with train_summary_writer.as_default():
-                tf.summary.scalar("Training Loss", training_loss, step=epoch)
-            val_loss = float(p.compute_loss(x_val, y_val))
-            with train_summary_writer.as_default():
-                tf.summary.scalar("Validation Loss", val_loss, step=epoch + 1)
+                tf.summary.scalar('Sparsity', sparsity, step=epoch)
+                tf.summary.scalar('Training loss', pt_loss,
+                                  step=epoch)
 
-            if previous_val_loss - val_loss < 1e-3:
-                val_loss_counts += 1
-                if val_loss_counts == 1:
-                    p.save_model(f"pt_lr{lr}_rln{layers_rln}_tln{layers_tln}")
-                elif val_loss_counts >= 6:
-                    break
-            else:
-                previous_val_loss = float(val_loss)
-                val_loss_counts = 0
+            rep = get_representations_graphics(x_val, pb.model_rln)
+            with train_summary_writer.as_default():
+                tf.summary.image("representation", rep, epoch)
+
+            copy_parameters(pb.model_tln, tln_copy)
+
+            losses = evaluate_models_isw(x_train=x_train,
+                                         y_train=y_train,
+                                         x_val=x_val,
+                                         y_val=y_val,
+                                         tln=tln_copy, rln=pb.model_rln)
+
+            mean_loss_all_val = losses[0]
+            # loss_per_class_during_training = losses[1]
+
+            with train_summary_writer.as_default():
+                tf.summary.scalar('Validation loss', mean_loss_all_val, step=epoch)
+            print(f"Epoch: {epoch}\tSparsity: {sparsity}\t"
+                  f"Mean loss: {mean_loss_all_val}")
+
+        # Save model every "save_models_every" epochs
+        if epoch % args.save_models_every == 0 and epoch > 0:
+            save_models(model=pb.model_rln, name=model_prefix + f"_rln")
+            save_models(model=pb.model_tln, name=model_prefix + f"_tln")
+
+    # Save final model
+    save_models(model=pb.model_rln, name=model_prefix + f"_rln")
+    save_models(model=pb.model_tln, name=model_prefix + f"_tln")
+
+if __name__ == '__main__':
+    # Parse arguments
+    argument_parser = argparse.ArgumentParser()
+    argument_parser.add_argument("--learning_rate", type=float, default=3e-3,
+                                 help="Learning rate")
+    argument_parser.add_argument("--epochs", type=int, default=20000,
+                                 help="number of epochs to pre train for")
+    argument_parser.add_argument("--n_tasks", type=int, default=400,
+                                 help="number of tasks to pre train from")
+    argument_parser.add_argument("--val_tasks", type=int, default=400,
+                                 help="number of validation tasks to train and evaluate from")
+    argument_parser.add_argument("--n_functions", type=int, default=10,
+                                 help="number of functions to sample per epoch")
+    argument_parser.add_argument("--sample_length", type=int, default=32,
+                                 help="length of each sequence sampled")
+    argument_parser.add_argument("--pt_repetitions", type=int, default=40,
+                                 help="number of pre train repetitions for generating"
+                                      " the data samples")
+    argument_parser.add_argument("--val_repetitions", type=int, default=50,
+                                 help="number of validation/train repetitions for generating"
+                                      " the data samples")
+    argument_parser.add_argument("--save_models_every", type=int, default=100,
+                                 help="Amount of epochs to pass before saving"
+                                      " models")
+    argument_parser.add_argument("--post_results_every", type=int, default=1000,
+                                 help="Amount of epochs to pass before posting"
+                                      " results in Tensorboard")
+    argument_parser.add_argument("--resetting_last_layer", default=True, type=bool,
+                                 help="Reinitialization of the last layer of"
+                                      " the TLN")
+    argument_parser.add_argument("--representation_size", default=900, type=int,
+                                 help="Size of representations")
+
+    args = argument_parser.parse_args()
+    main(args)

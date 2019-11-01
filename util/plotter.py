@@ -41,4 +41,23 @@ def plot_random_isw(n_fun_to_plot=2):
     plt.show()
 
 
-plot_random_isw(n_fun_to_plot=5)
+def plot_error_bars(results):
+    """
+    Plot
+    :return:
+    """
+
+    # for run in results:
+    #     x_sequences = []
+    #     for task_id, loss_res in run.items():
+    #         pass
+
+    # plt.bar(x_sequences, )
+    plt.yaxis.grid(True)
+
+    # Save the figure and show
+    plt.tight_layout()
+    plt.savefig('bar_plot_with_error_bars.png')
+    plt.show()
+
+# plot_random_isw(n_fun_to_plot=5)

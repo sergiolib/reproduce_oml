@@ -16,9 +16,26 @@ class PretrainingBaseline:
         self.model_tln = None
         self.loss_function = loss_function
 
-    def build_isw_model(self, n_layers_rln=6, n_layers_tln=2, hidden_units_per_layer=300, one_hot_depth=10, seed=None):
-        self.model_rln, self.model_tln = mrcl_isw(n_layers_rln, n_layers_tln, hidden_units_per_layer, one_hot_depth,
-                                                  seed)
+    def build_isw_model(self, n_layers_rln=6, n_layers_tln=2,
+                        hidden_units_per_layer=300,
+                        representation_size=900,
+                        one_hot_depth=10, seed=None):
+        rln, tln = mrcl_isw(n_layers_rln, n_layers_tln,
+                            hidden_units_per_layer,
+                            one_hot_depth,
+                            representation_size=representation_size,
+                            seed=seed)
+        self.model_rln, self.model_tln = rln, tln
+
+    def build_omniglot_model(self, n_layers_rln=6, n_layers_tln=2, filters=256, hidden_units_per_layer=300, seed=None):
+        self.model_rln, self.model_tln = mrcl_omniglot(n_layers_rln,
+                                                       n_layers_tln,
+                                                       filters,
+                                                       hidden_units_per_layer,
+                                                       seed=seed)
+        self.compute_loss_training = tf.function(self._compute_loss)
+        self.compute_loss_no_training = tf.function(
+            self._compute_loss_no_regularization)
 
     def build_omniglot_model(self, n_layers_rln=6, n_layers_tln=2, filters=256, hidden_units_per_layer=300, seed=None):
         self.model_rln, self.model_tln = mrcl_omniglot(n_layers_rln, n_layers_tln, filters, hidden_units_per_layer,
@@ -39,8 +56,10 @@ class PretrainingBaseline:
             isdir("saved_models/")
         except NotADirectoryError:
             raise NotADirectoryError
-        self.model_rln = tf.keras.models.load_model(f"saved_models/{name}_rln.tf")
-        self.model_tln = tf.keras.models.load_model(f"saved_models/{name}_tln.tf")
+        self.model_rln = tf.keras.models.load_model(
+            f"saved_models/{name}_rln.tf")
+        self.model_tln = tf.keras.models.load_model(
+            f"saved_models/{name}_tln.tf")
 
     @tf.function
     def compute_loss(self, x, y):
@@ -49,7 +68,8 @@ class PretrainingBaseline:
     def pre_train(self, x_pre_train, y_pre_train, learning_rate):
         with tf.GradientTape() as tape:
             loss = self.compute_loss(x_pre_train, y_pre_train)
-        params = self.model_rln.trainable_variables + self.model_tln.trainable_variables
+        params = self.model_rln.trainable_variables + \
+            self.model_tln.trainable_variables
         gradients = tape.gradient(loss, params)
         for p, g in zip(params, gradients):
             p.assign(p - g * learning_rate)
