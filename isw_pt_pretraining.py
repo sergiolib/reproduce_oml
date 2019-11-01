@@ -20,31 +20,45 @@ if len(gpus) > 0:
 argument_parser = argparse.ArgumentParser()
 argument_parser.add_argument("--learning_rate", nargs="+", type=float, default=[3e-6],
                              help="Learning rate")
-argument_parser.add_argument("--epochs", type=int, default=10000,
+argument_parser.add_argument("--epochs", type=int, default=1,
                              help="Number of epochs to pre train for")
-argument_parser.add_argument("--n_tasks", type=int, default=400,
+argument_parser.add_argument("--tr_tasks", type=int, default=400,
                              help="Number of tasks to pre train from")
+argument_parser.add_argument("--val_tasks", type=int, default=500,
+                             help="Number of tasks to validate and train from")
 argument_parser.add_argument("--n_functions", type=int, default=10,
                              help="Number of functions to sample per epoch")
 argument_parser.add_argument("--sample_length", type=int, default=32,
                              help="Length of each sequence sampled")
-argument_parser.add_argument("--repetitions", type=int, default=40,
-                             help="Number of train repetitions for generating the data samples")
+argument_parser.add_argument("--tr_repetitions", type=int, default=40,
+                             help="Number of train repetitions for generating"
+                                  " the data samples for the pre training set")
+argument_parser.add_argument("--val_repetitions", type=int, default=40,
+                             help="Number of train repetitions for generating"
+                                  " the data samples for the validation set")
 argument_parser.add_argument("--save_models_every", type=int, default=100,
-                             help="Amount of epochs to pass before saving models")
+                             help="Amount of epochs to pass before saving"
+                                  " models")
 argument_parser.add_argument("--check_val_every", type=int, default=100,
-                             help="Amount of epochs to pass before checking validation loss")
+                             help="Amount of epochs to pass before checking"
+                                  " validation loss")
 argument_parser.add_argument("--layers_rln", type=int, nargs="+", default=6,
                              help="Amount of layers in the RLN and TLN")
+argument_parser.add_argument("--seed", type=int, default=None,
+                             help="Random seed")
 
 args = argument_parser.parse_args()
 
-train_tasks = gen_tasks(args.n_functions)  # Generate tasks parameters
-val_tasks = gen_tasks(args.n_functions)
+train_tasks = gen_tasks(args.tr_tasks)  # Generate tasks parameters
+val_tasks = gen_tasks(args.val_tasks)
 
-_, _, x_val, y_val = gen_sine_data(tasks=val_tasks, n_functions=args.n_functions,
-                                   sample_length=args.sample_length,
-                                   repetitions=args.repetitions, seed=0)
+out = gen_sine_data(tasks=val_tasks,
+                    n_functions=args.n_functions,
+                    sample_length=args.sample_length,
+                    repetitions=args.val_repetitions,
+                    seed=args.seed)
+
+x_train, y_train, x_val, y_val = out
 
 # Numpy -> Tensorflow
 x_val = tf.convert_to_tensor(x_val, dtype=tf.float32)
@@ -54,45 +68,54 @@ y_val = tf.convert_to_tensor(y_val, dtype=tf.float32)
 loss = float("inf")
 # Create logs directories
 current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-layers_rln = args.layers_rln if type(args.layers_rln) is list else [args.layers_rln]
-gen = product(layers_rln, args.learning_rate)
-gen = list(gen)
-random.shuffle(gen)
-for layers_rln, lr in tqdm.tqdm(gen):
+
+layers_rln = args.layers_rln
+if type(args.layers_rln) is not list:
+    layers_rln = [layers_rln]
+
+params_instances = product(layers_rln, args.learning_rate)
+params_instances = list(params_instances)
+random.shuffle(params_instances)
+for layers_rln, lr in tqdm.tqdm(params_instances):
     layers_tln = 8 - layers_rln
     print(f"rln: {layers_rln}, tln: {layers_tln}, lr: {lr}")
-    train_log_dir = f'logs/pt_isw_lr{lr}_rln{layers_rln}_tln{layers_tln}/' + current_time + '/pre_train'
+    train_log_dir = f'logs/pt_isw_lr{lr}_rln{layers_rln}_tln{layers_tln}/' \
+        + current_time + '/pre_train'
     makedirs(train_log_dir, exist_ok=True)
     train_summary_writer = tf.summary.create_file_writer(train_log_dir)
     tf.keras.backend.clear_session()
     p = PretrainingBaseline(tf.keras.losses.MeanSquaredError())
-    p.build_isw_model(n_layers_rln=layers_rln, n_layers_tln=layers_tln, seed=0)
+    p.build_isw_model(n_layers_rln=layers_rln, n_layers_tln=layers_tln,
+                      seed=args.seed)
     val_loss_counts = 0
     previous_val_loss = p.compute_loss(x_val, y_val)
     with train_summary_writer.as_default():
         tf.summary.scalar("Validation Loss", previous_val_loss, step=0)
     val_loss = None
     for epoch in range(args.epochs):
-        x_train, y_train, _, _ = gen_sine_data(tasks=train_tasks, n_functions=args.n_functions,
-                                               sample_length=args.sample_length,
-                                               repetitions=args.repetitions, seed=epoch)
+        x_traj, y_traj, _, _ = gen_sine_data(tasks=train_tasks,
+                                             n_functions=args.n_functions,
+                                             sample_length=args.sample_length,
+                                             repetitions=args.tr_repetitions,
+                                             seed=args.seed)
 
         # Reshape for inputting to training method
-        x_train = np.vstack(x_train)
-        y_train = np.vstack(y_train)
+        x_traj = np.vstack(x_traj)
+        y_traj = np.vstack(y_traj)
 
         # According to figure 3, data comes IID
-        indices = np.random.permutation(len(x_train))
-        x_train = x_train[indices]
-        y_train = y_train[indices]
+        np.random.seed(args.seed)
+        indices = np.random.permutation(len(x_traj))
+        x_traj = x_traj[indices]
+        y_traj = y_traj[indices]
 
         # Numpy -> Tensorflow
-        x_train = tf.convert_to_tensor(x_train, dtype=tf.float32)
-        y_train = tf.convert_to_tensor(y_train, dtype=tf.float32)
-        x_train = tf.reshape(x_train, (-1, args.n_functions + 1))
-        y_train = tf.reshape(y_train, (-1,))
+        x_traj = tf.convert_to_tensor(x_traj, dtype=tf.float32)
+        y_traj = tf.convert_to_tensor(y_traj, dtype=tf.float32)
+        x_traj = tf.reshape(x_traj, (-1, args.n_functions + 1))
+        y_traj = tf.reshape(y_traj, (-1,))
 
-        training_loss = float(p.pre_train(x_train, y_train, learning_rate=lr))
+        training_loss = float(p.pre_train(x_traj, y_traj, learning_rate=lr))
 
         if epoch % args.check_val_every == 0:
             with train_summary_writer.as_default():

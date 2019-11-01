@@ -18,11 +18,11 @@ class PretrainingBaseline:
 
     def build_isw_model(self, n_layers_rln=6, n_layers_tln=2, hidden_units_per_layer=300, one_hot_depth=10, seed=None):
         self.model_rln, self.model_tln = mrcl_isw(n_layers_rln, n_layers_tln, hidden_units_per_layer, one_hot_depth,
-                                                  seed)
+                                                  seed=seed)
 
     def build_omniglot_model(self, n_layers_rln=6, n_layers_tln=2, filters=256, hidden_units_per_layer=300, seed=None):
         self.model_rln, self.model_tln = mrcl_omniglot(n_layers_rln, n_layers_tln, filters, hidden_units_per_layer,
-                                                  seed)
+                                                       seed=seed)
         self.compute_loss_training = tf.function(self._compute_loss)
         self.compute_loss_no_training = tf.function(self._compute_loss_no_regularization)
 

@@ -3,6 +3,9 @@ import tensorflow as tf
 from os import makedirs
 from os.path import isdir
 
+from datasets.synth_datasets import gen_sine_data
+import numpy as np
+
 
 def copy_parameters(source, dest):
     for s, d in zip(source.trainable_variables, dest.trainable_variables):
@@ -87,3 +90,24 @@ def pretrain_mrcl(x_traj, y_traj, x_rand, y_rand, tln, tln_initial, rln, meta_op
     copy_parameters(tln_initial, tln)
 
     return outer_loss
+
+def prepare_data_pre_training(tasks, n_functions, sample_length, repetitions):
+    # Sample data
+    x_traj, y_traj, x_rand, y_rand = gen_sine_data(tasks=tasks,
+                                                   n_functions=n_functions,
+                                                   sample_length=sample_length,
+                                                   repetitions=repetitions)
+
+    # Reshape for inputting to training method
+    x_traj = np.vstack(x_traj)
+    y_traj = np.vstack(y_traj)
+    x_rand = np.vstack(x_rand)
+    y_rand = np.hstack(y_rand)
+
+    # Numpy -> Tensorflow
+    x_rand = tf.convert_to_tensor(x_rand, dtype=tf.float32)
+    y_rand = tf.convert_to_tensor(y_rand, dtype=tf.float32)
+    x_traj = tf.convert_to_tensor(x_traj, dtype=tf.float32)
+    y_traj = tf.convert_to_tensor(y_traj, dtype=tf.float32)
+
+    return x_traj, y_traj, x_rand, y_rand
