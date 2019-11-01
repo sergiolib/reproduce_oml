@@ -24,7 +24,7 @@ def main(args):
 
     # Create logs directories
     current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    train_log_dir = "/".join(["logs", model_prefix, current_time, "train":])
+    train_log_dir = "/".join(["logs", model_prefix, current_time, "train"])
     os.makedirs(train_log_dir, exist_ok=True)
 
     # Main pre training loop
