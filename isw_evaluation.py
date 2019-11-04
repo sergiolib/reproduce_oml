@@ -37,7 +37,7 @@ def parse_args():
                                  "pt_lr1e-07_rln5_tln3_tln.tf", type=str,
                                  help="Model file for the tln")
     argument_parser.add_argument("--learning_rate", nargs="+",
-                                 default=0.000003, type=float,
+                                 default=[0.003, 0.01, 0.03, 0.1, 0.3], type=float,
                                  help="Learning rate(s) to try")
     argument_parser.add_argument("--results_dir",
                                  default="./results/{}/", type=str,
@@ -51,13 +51,11 @@ def parse_args():
     args = argument_parser.parse_args()
     return args
 
+
 def main(args):
     # Generate tasks parameters
     tasks = gen_tasks(args.n_functions)
     test_tasks = gen_tasks(args.n_tasks)
-
-    # Loss function
-    loss_fun = tf.keras.losses.MeanSquaredError()
 
     # Create logs directories
     current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -98,12 +96,13 @@ def main(args):
             new_b = tf.keras.initializers.zeros()(shape=b.shape)
             b.assign(new_b)
 
-        optimizer = tf.keras.optimizers.SGD(learning_rate=lr)
         losses = evaluate_models_isw(x_train=x_train,
                                      y_train=y_train,
                                      x_val=x_val,
                                      y_val=y_val,
-                                     tln=tln, rln=rln)
+                                     tln=tln, rln=rln,
+                                     learning_rate=lr)
+        training_losses, validation_losses = losses
 
         mean_loss_all_val = losses[0]
 
@@ -146,27 +145,34 @@ def main(args):
                                      tln=tln,
                                      reset_last_layer=True,
                                      batch_size=args.batch_size_evaluation,
-                                     epochs=1)
+                                     epochs=1,
+                                     learning_rate=best_lr)
 
-        mean_loss_all_val = losses[0]
+        training_losses, validation_losses = losses
+
+        # For now, we will care only on training losses
+        losses = training_losses
+
+        mean_loss_all = losses[0]
         loss_per_class_during_training = losses[1]
         interference_losses = losses[2]
 
-        all_mean_losses.append(mean_loss_all_val)
+        all_mean_losses.append(mean_loss_all)
         all_3a_results.append(loss_per_class_during_training)
         all_3b_results.append(interference_losses)
 
     args.results_dir = args.results_dir.format(args.model_name)
     location = os.path.join(args.results_dir, f"isw_{args.model_name}"
-                                              f"losses_{lr}.json")
+                                              f"losses_{best_lr}.json")
     os.makedirs(os.path.dirname(location), exist_ok=True)
     json.dump(all_mean_losses, open(location, "w"))
     location = os.path.join(args.results_dir, f"isw_{args.model_name}"
-                                              f"3a_{lr}.json")
+                                              f"3a_{best_lr}.json")
     json.dump(all_3a_results, open(location, "w"))
     location = os.path.join(args.results_dir, f"isw_{args.model_name}"
-                                              f"3b_{lr}.json")
+                                              f"3b_{best_lr}.json")
     json.dump(all_3b_results, open(location, "w"))
+
 
 if __name__ == '__main__':
     args = parse_args()
