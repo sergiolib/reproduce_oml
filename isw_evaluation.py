@@ -81,21 +81,20 @@ def main(args):
                                                              args.repetitions,
                                                              seed=args.seed)
 
+    tf.keras.backend.clear_session()
+    rln = tf.keras.models.load_model(args.model_file_rln)
+    tln = tf.keras.models.load_model(args.model_file_tln)
+
+    # Random reinitialization of last layer
+    w = tln.layers[-1].weights[0]
+    b = tln.layers[-1].weights[1]
+    new_w = tf.keras.initializers.he_normal()(shape=w.shape)
+    new_b = tf.keras.initializers.zeros()(shape=b.shape)
+
     for lr in tqdm.tqdm(learning_rate):
+        w.assign(new_w)
+        b.assign(new_b)
         # Numpy -> Tensorflow
-        tf.keras.backend.clear_session()
-        rln = tf.keras.models.load_model(args.model_file_rln)
-        tln = tf.keras.models.load_model(args.model_file_tln)
-
-        if args.resetting_last_layer:
-            # Random reinitialization of last layer
-            w = tln.layers[-1].weights[0]
-            b = tln.layers[-1].weights[1]
-            new_w = tf.keras.initializers.he_normal()(shape=w.shape)
-            w.assign(new_w)
-            new_b = tf.keras.initializers.zeros()(shape=b.shape)
-            b.assign(new_b)
-
         losses = evaluate_models_isw(x_train=x_train,
                                      y_train=y_train,
                                      x_val=x_val,
@@ -104,14 +103,16 @@ def main(args):
                                      learning_rate=lr)
         training_losses, validation_losses = losses
 
-        mean_loss_all_val = losses[0]
+        mean_loss_all_val = validation_losses[0]
 
         loss_per_lr.append((lr, mean_loss_all_val))
 
     best_lr, best_loss = sorted(loss_per_lr, key=lambda x: x[1])[0]
 
+    print(f"Chose lr={best_lr} with loss={best_loss}")
+
     # Run many times with best_lr
-    optimizer = tf.keras.optimizers.SGD(learning_rate=best_lr)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=best_lr)
 
     all_results = []
     for i in tqdm.trange(args.tests):
@@ -128,14 +129,13 @@ def main(args):
         rln = tf.keras.models.load_model(args.model_file_rln)
         tln = tf.keras.models.load_model(args.model_file_tln)
 
-        if args.resetting_last_layer:
-            # Random reinitialization of last layer
-            w = tln.layers[-1].weights[0]
-            b = tln.layers[-1].weights[1]
-            new_w = tf.keras.initializers.he_normal()(shape=w.shape)
-            w.assign(new_w)
-            new_b = tf.keras.initializers.zeros()(shape=b.shape)
-            b.assign(new_b)
+        # Random reinitialization of last layer
+        w = tln.layers[-1].weights[0]
+        b = tln.layers[-1].weights[1]
+        new_w = tf.keras.initializers.he_normal()(shape=w.shape)
+        w.assign(new_w)
+        new_b = tf.keras.initializers.zeros()(shape=b.shape)
+        b.assign(new_b)
 
         losses = evaluate_models_isw(x_train=x_train,
                                      y_train=y_train,
@@ -143,7 +143,6 @@ def main(args):
                                      y_val=y_val,
                                      rln=rln,
                                      tln=tln,
-                                     reset_last_layer=True,
                                      batch_size=args.batch_size_evaluation,
                                      epochs=1,
                                      learning_rate=best_lr)
