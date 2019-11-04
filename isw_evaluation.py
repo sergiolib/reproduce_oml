@@ -112,7 +112,7 @@ def main(args):
     print(f"Chose lr={best_lr} with loss={best_loss}")
 
     # Run many times with best_lr
-    optimizer = tf.keras.optimizers.Adam(learning_rate=best_lr)
+    optimizer = tf.keras.optimizers.SGD(learning_rate=best_lr)
 
     all_results = []
     for i in tqdm.trange(args.tests):
