@@ -136,8 +136,7 @@ def main(args):
                                          rln=rln,
                                          learning_rate=eval_lr)
 
-            mean_loss_all_val = losses[0][0]
-            # loss_per_class_during_training = losses[1]
+            mean_loss_all_val = losses[1][0]
 
             with train_summary_writer.as_default():
                 tf.summary.scalar('Validation loss', mean_loss_all_val,
