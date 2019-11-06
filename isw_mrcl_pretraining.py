@@ -17,6 +17,50 @@ from experiments.evaluation import get_representations_graphics
 model_prefix = "isw_mrcl"
 
 
+def parse_arguments():
+    # Parse arguments
+    argument_parser = argparse.ArgumentParser()
+    argument_parser.add_argument("--meta_learning_rate", type=float,
+                                 default=1e-4,
+                                 help="alpha")
+    argument_parser.add_argument("--evaluation_learning_rate", type=float,
+                                 default=3e-3,
+                                 help="Evaluation learning rate")
+    argument_parser.add_argument("--inner_learning_rate", type=float,
+                                 default=3e-3, help="beta")
+    argument_parser.add_argument("--epochs", type=int, default=20000,
+                                 help="number of epochs to pre train for")
+    argument_parser.add_argument("--n_tasks", type=int, default=400,
+                                 help="number of tasks to pre train from")
+    argument_parser.add_argument("--val_tasks", type=int, default=500,
+                                 help="number of validation tasks to train and"
+                                      " evaluate from")
+    argument_parser.add_argument("--n_functions", type=int, default=10,
+                                 help="number of functions to sample per epoch")
+    argument_parser.add_argument("--sample_length", type=int, default=32,
+                                 help="length of each sequence sampled")
+    argument_parser.add_argument("--pt_repetitions", type=int, default=40,
+                                 help="number of pre train repetitions for"
+                                      " generating the data samples")
+    argument_parser.add_argument("--val_repetitions", type=int, default=50,
+                                 help="number of validation/train repetitions"
+                                      " for generating the data samples")
+    argument_parser.add_argument("--save_models_every", type=int, default=100,
+                                 help="Amount of epochs to pass before saving"
+                                      " models")
+    argument_parser.add_argument("--post_results_every", type=int, default=100,
+                                 help="Amount of epochs to pass before posting"
+                                      " results in Tensorboard")
+    argument_parser.add_argument("--resetting_last_layer", action='store_true',
+                                 help="Reinitialization of the last"
+                                      " layer of the TLN")
+    argument_parser.add_argument("--representation_size", default=900,
+                                 type=int, help="Size of representations")
+
+    args = argument_parser.parse_args()
+    return args
+
+
 def main(args):
     tr_tasks = gen_tasks(args.n_tasks)  # Generate tasks parameters
     val_tasks = gen_tasks(args.val_tasks)
@@ -50,9 +94,10 @@ def main(args):
                                        args.val_repetitions)
     x_train, y_train, x_val, y_val = val_data
 
-    eval_optimizer = tf.keras.optimizers.SGD(learning_rate=0.003)
+    eval_lr = args.evaluation_learning_rate
 
-    for epoch in tqdm.trange(args.epochs):
+    t = tqdm.trange(args.epochs)
+    for epoch in t:
         tr_data = prepare_data_pre_training(tr_tasks,
                                             args.n_functions,
                                             args.sample_length,
@@ -67,6 +112,7 @@ def main(args):
                                 loss_function=loss_fun,
                                 beta=args.inner_learning_rate,
                                 reset_last_layer=args.resetting_last_layer)
+        t.set_description(f"{pt_loss:.3}")
         # Check metrics for Tensorboard to be included every
         # "post_results_every" epochs
         if epoch % args.post_results_every == 0:
@@ -86,9 +132,11 @@ def main(args):
                                          y_train=y_train,
                                          x_val=x_val,
                                          y_val=y_val,
-                                         tln=tln_copy, rln=rln)
+                                         tln=tln_copy,
+                                         rln=rln,
+                                         learning_rate=eval_lr)
 
-            mean_loss_all_val = losses[0]
+            mean_loss_all_val = losses[0][0]
             # loss_per_class_during_training = losses[1]
 
             with train_summary_writer.as_default():
@@ -108,41 +156,5 @@ def main(args):
 
 
 if __name__ == '__main__':
-    # Parse arguments
-    argument_parser = argparse.ArgumentParser()
-    argument_parser.add_argument("--meta_learning_rate", type=float,
-                                 default=1e-4,
-                                 help="alpha")
-    argument_parser.add_argument("--inner_learning_rate", type=float,
-                                 default=3e-3, help="beta")
-    argument_parser.add_argument("--epochs", type=int, default=20000,
-                                 help="number of epochs to pre train for")
-    argument_parser.add_argument("--n_tasks", type=int, default=400,
-                                 help="number of tasks to pre train from")
-    argument_parser.add_argument("--val_tasks", type=int, default=400,
-                                 help="number of validation tasks to train and"
-                                      " evaluate from")
-    argument_parser.add_argument("--n_functions", type=int, default=10,
-                                 help="number of functions to sample per epoch")
-    argument_parser.add_argument("--sample_length", type=int, default=32,
-                                 help="length of each sequence sampled")
-    argument_parser.add_argument("--pt_repetitions", type=int, default=40,
-                                 help="number of pre train repetitions for"
-                                      " generating the data samples")
-    argument_parser.add_argument("--val_repetitions", type=int, default=50,
-                                 help="number of validation/train repetitions"
-                                      " for generating the data samples")
-    argument_parser.add_argument("--save_models_every", type=int, default=100,
-                                 help="Amount of epochs to pass before saving"
-                                      " models")
-    argument_parser.add_argument("--post_results_every", type=int, default=1000,
-                                 help="Amount of epochs to pass before posting"
-                                      " results in Tensorboard")
-    argument_parser.add_argument("--resetting_last_layer", default=True,
-                                 type=bool, help="Reinitialization of the last"
-                                                 " layer of the TLN")
-    argument_parser.add_argument("--representation_size", default=900,
-                                 type=int, help="Size of representations")
-
-    args = argument_parser.parse_args()
+    args = parse_arguments()
     main(args)

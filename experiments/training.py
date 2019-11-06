@@ -66,9 +66,8 @@ def pretrain_mrcl(x_traj, y_traj, x_rand, y_rand, tln, tln_initial, rln, meta_op
     copy_parameters(tln, tln_initial)
 
     # Sample x_rand, y_rand from s_remember
-    x_shape = x_traj.shape
-    x_traj_f = tf.reshape(x_traj, (x_shape[0] * x_shape[1], x_shape[2]))
-    y_traj_f = tf.reshape(y_traj, (x_shape[0] * x_shape[1],))
+    x_traj_f = tf.concat([i for i in x_traj], 0)
+    y_traj_f = tf.concat([i for i in y_traj], 0)
 
     x_meta = tf.concat([x_rand, x_traj_f], axis=0)
     y_meta = tf.concat([y_rand, y_traj_f], axis=0)

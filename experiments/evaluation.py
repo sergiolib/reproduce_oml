@@ -10,115 +10,63 @@ def compute_loss(x, y, loss_function, tln, rln):
 
 def train_and_evaluate(x_train, y_train, x_val, y_val, rln, tln, optimizer,
                        loss_function, batch_size, epochs=1):
-    # For every class
     results_3a = {}
     results_3b = {}
     results_3a_tr = {}
     results_3b_tr = {}
+
+    # For every class
     for cls in range(len(x_train)):
-        prev_loss = float("inf")
         for e in range(epochs):
+            x_train_cls = x_train[cls]
+            y_train_cls = y_train[cls]
+
             # get its data points
             data = tf.data.Dataset.from_tensor_slices(
-                (x_train[cls], y_train[cls])).batch(batch_size)
+                (x_train_cls, y_train_cls)).batch(batch_size)
 
             # Train with its data points using GD
-            training_loss = 0.0
-            i = 0
             for x, y in data:
-                i += 1
                 with tf.GradientTape() as tape:
                     loss = compute_loss(x, y, loss_function, tln, rln)
                 gradient_tln = tape.gradient(loss, tln.trainable_variables)
                 optimizer.apply_gradients(zip(gradient_tln,
                                               tln.trainable_variables))
-                training_loss += float(loss)
 
-            training_loss /= i
+        # Calculate loss with seen data from training set
+        x_train_classes_seen = tf.concat([i for i in x_train[:cls + 1]], 0)
+        y_train_classes_seen = tf.concat([i for i in y_train[:cls + 1]], 0)
 
-            # Validate with unseen data from training set
-            x_train_classes_seen = tf.expand_dims(x_train[cls], 0)
-            y_train_classes_seen = tf.expand_dims(y_train[cls], 0)
+        training_loss = compute_loss(x_train_classes_seen,
+                                     y_train_classes_seen,
+                                     loss_function, tln, rln)
+        results_3a_tr[cls + 1] = training_loss.numpy()
 
-            tr_output_loss = 0.0
-            i = 0
-            for x, y in tf.data.Dataset.from_tensor_slices((
-                    x_train_classes_seen, y_train_classes_seen)):
-                i += 1
-                loss = compute_loss(x, y, loss_function, tln, rln)
-                tr_output_loss += loss
-            tr_output_loss /= i
+        # Calculate loss with unseen data from validation set
+        x_val_classes_seen = tf.concat([i for i in x_val[:cls + 1]], 0)
+        y_val_classes_seen = tf.concat([i for i in y_val[:cls + 1]], 0)
 
-            # Validate with unseen data from validation set and do early stopping
-            x_val_classes_seen = tf.expand_dims(x_val[cls], 0)
-            y_val_classes_seen = tf.expand_dims(y_val[cls], 0)
+        validation_loss = compute_loss(x_val_classes_seen, y_val_classes_seen,
+                                       loss_function, tln, rln)
+        results_3a[cls + 1] = validation_loss.numpy()
 
-            output_loss = 0
-            i = 0
-            for x, y in tf.data.Dataset.from_tensor_slices((
-                    x_val_classes_seen, y_val_classes_seen)):
-                loss = compute_loss(x, y, loss_function, tln, rln)
-                output_loss += loss
-                i += 1
-            output_loss /= i
-
-        # Class trained: evaluate all seen data so far on validation set
-        x_val_classes_seen = x_val[:cls + 1]
-        y_val_classes_seen = y_val[:cls + 1]
-
-        output_loss = 0
-        data_iter = tf.data.Dataset.from_tensor_slices((x_val_classes_seen,
-                                                        y_val_classes_seen))
-        i = 0
-        for x, y in data_iter:
-            loss = compute_loss(x, y, loss_function, tln, rln)
-            output_loss += loss
-            i += 1
-        output_loss /= i
-        results_3a[cls + 1] = float(output_loss)
-
-        # Class trained: evaluate all seen data so far on training set
-        x_train_classes_seen = x_train[:cls + 1]
-        y_train_classes_seen = y_train[:cls + 1]
-
-        output_loss = 0
-        data_iter = tf.data.Dataset.from_tensor_slices((x_train_classes_seen,
-                                                        y_train_classes_seen))
-        i = 0
-        for x, y in data_iter:
-            loss = compute_loss(x, y, loss_function, tln, rln)
-            output_loss += loss
-            i += 1
-        output_loss /= i
-        results_3a_tr[cls + 1] = float(output_loss)
-
-    x_val_classes_seen = x_val
-    y_val_classes_seen = y_val
-
-    data_iter = tf.data.Dataset.from_tensor_slices((x_val_classes_seen,
-                                                    y_val_classes_seen))
+    data_iter = tf.data.Dataset.from_tensor_slices((x_val, y_val))
     for i, (x, y) in enumerate(data_iter):
-        results_3b[i + 1] = float(compute_loss(x, y, loss_function,
-                                               tln, rln))
+        results_3b[i + 1] = compute_loss(x, y, loss_function,
+                                         tln, rln).numpy()
 
-    x_train_classes_seen = x_train
-    y_train_classes_seen = y_train
-
-    data_iter = tf.data.Dataset.from_tensor_slices((x_train_classes_seen,
-                                                    y_train_classes_seen))
+    data_iter = tf.data.Dataset.from_tensor_slices((x_train, y_train))
     for i, (x, y) in enumerate(data_iter):
-        results_3b_tr[i + 1] = float(compute_loss(x, y, loss_function,
-                                                  tln, rln))
-    # Results_3a: Mean Squared Error of classes seen so far
-    # Results_3b: Mean Squared Error of each class in the end
+        results_3b_tr[i + 1] = compute_loss(x, y, loss_function,
+                                            tln, rln).numpy()
+
     validation_results = results_3a, results_3b
     training_results = results_3a_tr, results_3b_tr
     return training_results, validation_results
 
 
 def evaluate_models_isw(x_train, y_train, x_val, y_val, tln, rln,
-                        learning_rate, reset_last_layer=True,
-                        batch_size=8, epochs=1):
+                        learning_rate, batch_size=8, epochs=1):
     loss_function = tf.keras.losses.MeanSquaredError()
     optimizer = tf.keras.optimizers.SGD(learning_rate=learning_rate)
 
